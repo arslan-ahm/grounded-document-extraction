@@ -302,9 +302,14 @@ def test_run_single_writes_a_populated_run_directory(tmp_path):  # noqa: ANN001
     assert bool(emitted["grounded"].all())
 
 
-def test_run_single_rejects_a_head_with_no_arms(tiny_cfg):  # noqa: ANN001
+def test_run_single_rejects_a_head_with_no_arms(tiny_cfg, tmp_path):  # noqa: ANN001
+    cfg = replace(
+        tiny_cfg,
+        model=replace(tiny_cfg.model, head="span"),
+        run=replace(tiny_cfg.run, out_dir=tmp_path.as_posix()),
+    )
     with pytest.raises(ValueError, match="no arms defined"):
-        run_single(replace(tiny_cfg, model=replace(tiny_cfg.model, head="span")), arms=())
+        run_single(cfg, arms=())
 
 
 # --- analysis tables -------------------------------------------------------
