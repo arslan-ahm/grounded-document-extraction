@@ -70,6 +70,11 @@ _MONTHS = {
     "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
 }
 
+#: Longest token span considered a candidate value. The generator never writes
+#: a value longer than four tokens ("3rd of Jan 2024"); six leaves headroom
+#: without making the span index quadratic in a way that matters.
+MAX_VALUE_SPAN = 6
+
 _ORDINAL = re.compile(r"^(\d{1,2})(st|nd|rd|th)$", re.I)
 
 #: Words a written date may contain without ceasing to be only a date.
@@ -320,6 +325,12 @@ class Document:
     fields: dict[str, FieldTruth] = field(default_factory=dict)
     n_pages: int = 1
     meta: dict[str, Any] = field(default_factory=dict)
+    #: Cache for :meth:`value_index`, keyed by canonicalisation family. Excluded
+    #: from equality and repr so two documents with the same content compare
+    #: equal whether or not either has been queried.
+    _index: dict[str, frozenset[str]] = field(
+        default_factory=dict, repr=False, compare=False
+    )
 
     def __len__(self) -> int:
         return len(self.tokens)
@@ -357,23 +368,53 @@ class Document:
             max(t.box[3] for t in toks),
         )
 
-    def contains_value(self, field_name: str, value: str, max_span_len: int = 8) -> bool:
+    def value_index(self, field_name: str) -> frozenset[str]:
+        """Every canonical value obtainable from a contiguous span, cached.
+
+        Built per *family* (date, amount, text) rather than per field, because
+        :func:`canonical_value` depends only on the family. Three sets cover all
+        eight fields, and the index is what makes the provenance check cheap
+        enough to run on every candidate of every method -- computing it inline
+        made the verification loop 20x slower than the model it was checking.
+        """
+        family = (
+            "date"
+            if field_name in DATE_FIELDS
+            else "amount"
+            if field_name in AMOUNT_FIELDS
+            else "text"
+        )
+        cached = self._index.get(family)
+        if cached is not None:
+            return cached
+        probe = (
+            "invoice_date" if family == "date" else "total" if family == "amount" else "vendor_name"
+        )
+        values: set[str] = set()
+        n = len(self.tokens)
+        for start in range(n):
+            page = self.tokens[start].page
+            for end in range(start, min(start + MAX_VALUE_SPAN, n)):
+                if self.tokens[end].page != page:
+                    break
+                canon = canonical_value(probe, self.span_text(start, end))
+                if canon:
+                    values.add(canon)
+        out = frozenset(values)
+        self._index[family] = out
+        return out
+
+    def contains_value(self, field_name: str, value: str) -> bool:
         """Does ``value`` appear as some contiguous token span of this document?
 
         This is the predicate behind the hallucination metric. It is evaluated
         under :func:`canonical_value` so that a formatting difference does not
         count as a hallucination -- the question is whether the *content* was
-        present, not whether the whitespace matched.
+        present, not whether the whitespace matched. A value spanning more than
+        :data:`MAX_VALUE_SPAN` tokens is treated as absent; the generator never
+        writes one longer than four.
         """
         target = canonical_value(field_name, value)
         if not target:
             return False
-        n = len(self.tokens)
-        for start in range(n):
-            page = self.tokens[start].page
-            for end in range(start, min(start + max_span_len, n)):
-                if self.tokens[end].page != page:
-                    break
-                if canonical_value(field_name, self.span_text(start, end)) == target:
-                    return True
-        return False
+        return target in self.value_index(field_name)
