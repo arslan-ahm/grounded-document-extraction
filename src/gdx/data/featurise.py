@@ -58,8 +58,9 @@ SHAPE_CLASSES: tuple[str, ...] = (
 N_SHAPE_CLASSES = len(SHAPE_CLASSES)
 SHAPE_INDEX = {name: i for i, name in enumerate(SHAPE_CLASSES)}
 
-#: Magnitude buckets for numeric tokens: bucket ``k`` holds values in
-#: ``[10^(k-1), 10^k)``. Bucket 0 is "not a number".
+#: Magnitude buckets for numeric tokens. Bucket 0 is "not a number", bucket 1 is
+#: a value below 1, and bucket ``k >= 2`` holds ``[10^(k-2), 10^(k-1))``, so the
+#: shipped invoice amounts (1e2 to 1e5) occupy buckets 4 to 7.
 N_MAG_BUCKETS = 9
 
 #: Continuous geometry features per token.
@@ -134,8 +135,10 @@ def magnitude_bucket(text: str) -> int:
             return 0
     value = abs(value)
     if value < 1.0:
+        # Bucket 1 is "sub-unit" and is kept distinct from [1, 10): an earlier
+        # version collapsed the two, so 0.05 and 5.00 were the same feature.
         return 1
-    return int(min(N_MAG_BUCKETS - 1, 1 + math.floor(math.log10(value))))
+    return int(min(N_MAG_BUCKETS - 1, 2 + math.floor(math.log10(value))))
 
 
 @dataclass

@@ -298,6 +298,19 @@ def parse_set_override(item: str) -> tuple[list[str], Any]:
         value = raw
     if value is None and raw.strip() != "":
         value = raw
+    if isinstance(value, str):
+        # YAML 1.1 does not recognise `3e-4` as a float -- it needs `3.0e-4` --
+        # so `--set optim.lr=3e-4` would arrive as a string. The annotated type
+        # would coerce it anyway, but only for float-typed fields; doing it here
+        # means the parsed value is right regardless of where it lands.
+        text = value.strip()
+        try:
+            value = int(text)
+        except ValueError:
+            try:
+                value = float(text)
+            except ValueError:
+                value = text
     return key.split("."), value
 
 

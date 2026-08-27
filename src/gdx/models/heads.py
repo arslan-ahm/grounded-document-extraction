@@ -31,8 +31,7 @@ from torch.nn import functional as tf
 from gdx.config import ModelConfig
 from gdx.data.featurise import CHAR_BOS, CHAR_EOS, CHAR_PAD, N_CHARS, decode_chars
 from gdx.data.schema import FIELDS
-
-NEG_INF = -1e9
+from gdx.models.attention import NEG_INF
 
 
 @dataclass

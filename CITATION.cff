@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Grounded Document Extraction: provenance-grounded field extraction with a bounded verification loop"
+abstract: >-
+  An extracted field must carry provenance back to the specific source tokens it
+  was read from, and a field whose provenance does not verify is abstained on
+  rather than emitted. Extraction becomes selection plus verification rather than
+  generation, which makes "this value appears nowhere in the document" a
+  structural impossibility rather than a statistic.
+type: software
+version: 1.0.0
+date-released: "2026-08-27"
+license: MIT
+repository-code: "https://github.com/arslan-ahmad/grounded-document-extraction"
+authors:
+  - family-names: Ahmad
+    given-names: Arslan
+keywords:
+  - document-understanding
+  - information-extraction
+  - visually-rich-documents
+  - hallucination
+  - grounding
+  - selective-prediction
+  - calibration

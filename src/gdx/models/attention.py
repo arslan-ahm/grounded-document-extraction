@@ -22,6 +22,11 @@ import math
 import torch
 from torch import nn
 
+#: Additive mask sentinel. A literal ``-inf`` in the logits makes the softmax
+#: gradient NaN for a row that is entirely masked; a large finite value keeps the
+#: post-softmax weight below 1e-30 while staying differentiable.
+NEG_INF = -1e9
+
 
 class Attention(nn.Module):
     """Multi-head self-attention.
@@ -73,7 +78,7 @@ class Attention(nn.Module):
             logits = logits + bias
         if mask is not None:
             keep = mask[:, None, None, :].expand(b, self.n_heads, length, length)
-            logits = logits.masked_fill(~keep, float("-inf"))
+            logits = logits.masked_fill(~keep, NEG_INF)
             # A fully-masked row cannot happen (index 0 is always valid) but the
             # guard costs nothing and a NaN here would be silent.
             all_masked = (~mask).all(dim=-1)
