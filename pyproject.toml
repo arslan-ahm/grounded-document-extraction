@@ -14,7 +14,7 @@ keywords = [
     "document-understanding",
     "information-extraction",
     "visually-rich-documents",
-    "graph-neural-networks",
+    "span-selection",
     "hallucination",
     "grounding",
     "calibration",
@@ -38,7 +38,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.6", "nbformat>=5.9", "nbconvert>=7.10", "ipykernel>=6.29"]
-ocr = ["pytesseract>=0.3.10"]
 
 [project.scripts]
 gdx = "gdx.cli:main"
