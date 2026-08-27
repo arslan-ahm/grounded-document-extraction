@@ -1,0 +1,8 @@
+# Ablation: drop the 2-D layout Fourier features. Reading-order sinusoids stay,
+# so this contrasts 2-D layout position against 1-D reading-order position
+# rather than against no position at all.
+_base_: span.yaml
+model:
+  use_2d_pos: false
+run:
+  name: gdx_span_no_2d_pos

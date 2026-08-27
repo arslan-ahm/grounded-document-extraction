@@ -1,0 +1,6 @@
+# The reference approach: identical encoder, character-level generative head.
+_base_: base.yaml
+model:
+  head: generative
+run:
+  name: gdx_generative

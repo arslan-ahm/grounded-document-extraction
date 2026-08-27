@@ -63,3 +63,10 @@ src = ["src", "scripts", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["B008", "E741"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["gdx"]
+# scripts/_bootstrap.py puts src/ on sys.path and caps CPU threads; it must be
+# imported before anything from gdx, and isort keeps it there because "_" sorts
+# ahead of every letter in the third-party block.
+known-third-party = ["_bootstrap"]

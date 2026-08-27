@@ -1,0 +1,6 @@
+# Ablation: drop the relative-geometry attention bias, keep absolute 2-D position.
+_base_: span.yaml
+model:
+  use_spatial_bias: false
+run:
+  name: gdx_span_no_spatial_bias

@@ -1,0 +1,9 @@
+# Optional real-dataset path. NOT run for any committed number: it needs a
+# download, and this repository's shipped results all come from the generator.
+# See scripts/download_real.py.
+_base_: span.yaml
+data:
+  real_dataset: funsd
+  real_root: data/raw
+run:
+  name: gdx_span_funsd

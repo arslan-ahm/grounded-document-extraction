@@ -1,0 +1,7 @@
+# Ablation: verification loop off. Inference-time only, so it reuses the same
+# trained weights as configs/span.yaml.
+_base_: span.yaml
+verify:
+  enabled: false
+run:
+  name: gdx_span_no_verify

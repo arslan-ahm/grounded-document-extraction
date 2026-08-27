@@ -1,0 +1,12 @@
+# Tiny end-to-end run: real training, real metrics, about one minute.
+_base_: base.yaml
+data:
+  n_train: 60
+  n_val: 30
+  n_test: 40
+  max_tokens: 160
+optim:
+  epochs: 2
+  batch_size: 8
+run:
+  name: smoke

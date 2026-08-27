@@ -1,0 +1,63 @@
+# Shared defaults. Every other config inherits from this through `_base_`.
+# Unknown keys are rejected by gdx.config.from_dict, so a typo here is an error
+# rather than a silently-ignored setting.
+data:
+  n_train: 1200
+  n_val: 300
+  n_test: 400
+  max_tokens: 192
+  max_pages: 3
+  multi_page_prob: 0.35
+  box_jitter: 0.006
+  rotation_deg: 1.2
+  distractor_prob: 0.85
+  duplicate_total_prob: 0.45
+  missing_field_prob: 0.18
+  verbose_date_prob: 0.30
+  seed: 0
+
+model:
+  head: span
+  d_model: 64
+  n_layers: 2
+  n_heads: 4
+  d_ff: 128
+  dropout: 0.1
+  vocab_size: 512
+  use_2d_pos: true
+  use_spatial_bias: true
+  n_pos_bands: 8
+  n_spatial_buckets: 9
+  max_span_len: 6
+  dec_hidden: 96
+  dec_max_len: 20
+
+verify:
+  enabled: true
+  max_iters: 3
+  type_check: true
+  arithmetic: true
+  arithmetic_tol: 0.011
+  abstain: true
+  min_confidence: 0.0
+
+optim:
+  epochs: 6
+  batch_size: 16
+  lr: 0.003
+  weight_decay: 0.0001
+  warmup_frac: 0.1
+  grad_clip: 1.0
+
+run:
+  name: gdx_span
+  seed: 0
+  out_dir: results/runs
+  n_threads: 2
+  save_per_item: true
+
+baseline:
+  heuristic_variant: auto
+  llm_backend: stub
+  llm_model: offline-stub
+  llm_temperature: 0.0

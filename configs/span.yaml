@@ -1,0 +1,6 @@
+# This repository's method: selection plus the bounded verification loop.
+_base_: base.yaml
+model:
+  head: span
+run:
+  name: gdx_span
