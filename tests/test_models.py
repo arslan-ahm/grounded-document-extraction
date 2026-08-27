@@ -29,7 +29,6 @@ from gdx.models.position import (
 )
 from gdx.utils.complexity import attention_macs, count_macs, count_params
 
-
 # --- Sinusoidal1D ----------------------------------------------------------
 
 def test_sinusoidal_matches_the_closed_form():

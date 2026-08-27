@@ -15,7 +15,6 @@ import pytest
 
 from gdx.data.layout import CHAR_WIDTH, MARGIN, LayoutBuilder, iou
 
-
 # --- iou -------------------------------------------------------------------
 
 def test_iou_identical_boxes_is_one():

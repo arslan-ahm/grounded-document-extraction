@@ -282,13 +282,15 @@ def paired_tests(per_item: pd.DataFrame, seed: int) -> pd.DataFrame:
                 compare(vals_a, vals_b, arm, REFERENCE_ARM, metric, unit="document")
             )
 
-        emitted_arm = merged[merged["emitted_arm"]]
-        emitted_ref = merged[merged["emitted_ref"]]
-        n = min(len(emitted_arm), len(emitted_ref))
+        # The suffixes from the merge above rename every shared column, so the
+        # grounding flags are `grounded_arm` / `grounded_ref` here.
+        arm_hall = (~merged.loc[merged["emitted_arm"], "grounded_arm"].to_numpy(dtype=bool))
+        ref_hall = (~merged.loc[merged["emitted_ref"], "grounded_ref"].to_numpy(dtype=bool))
+        n = min(arm_hall.size, ref_hall.size)
         if n > 1:
             interval = bootstrap_metric_difference(
-                (~emitted_arm["grounded"].to_numpy(dtype=bool)).astype(np.float64)[:n],
-                (~emitted_ref["grounded"].to_numpy(dtype=bool)).astype(np.float64)[:n],
+                arm_hall.astype(np.float64)[:n],
+                ref_hall.astype(np.float64)[:n],
                 _rate,
             )
             rows.append(
@@ -297,8 +299,8 @@ def paired_tests(per_item: pd.DataFrame, seed: int) -> pd.DataFrame:
                     "name_b": REFERENCE_ARM,
                     "metric": "hallucination_rate",
                     "unit": "set",
-                    "mean_a": _rate((~emitted_arm["grounded"].to_numpy(dtype=bool)).astype(float)),
-                    "mean_b": _rate((~emitted_ref["grounded"].to_numpy(dtype=bool)).astype(float)),
+                    "mean_a": _rate(arm_hall.astype(np.float64)),
+                    "mean_b": _rate(ref_hall.astype(np.float64)),
                     "difference": interval.estimate,
                     "ci_lower": interval.lower,
                     "ci_upper": interval.upper,

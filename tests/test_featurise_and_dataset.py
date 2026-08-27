@@ -36,7 +36,6 @@ from gdx.data.featurise import (
 )
 from gdx.data.schema import FIELDS
 
-
 # --- vocabulary ------------------------------------------------------------
 
 def test_vocabulary_size_matches_the_request():
@@ -204,7 +203,7 @@ def test_decode_chars_stops_at_eos():
 
 
 def test_charset_indices_are_within_the_table():
-    assert N_CHARS == 3 + len(CHARSET)
+    assert 3 + len(CHARSET) == N_CHARS
     for value in ("$1,234.56", "INV-9", "2024-12-31"):
         assert all(0 <= int(i) < N_CHARS for i in encode_chars(value, 20))
 

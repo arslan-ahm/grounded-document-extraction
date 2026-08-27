@@ -29,7 +29,6 @@ from gdx.data.schema import (
     type_matches,
 )
 
-
 # --- normalise_text --------------------------------------------------------
 
 @pytest.mark.parametrize(
@@ -268,7 +267,7 @@ def test_field_schema_is_consistent():
     assert set(AMOUNT_FIELDS) <= set(FIELDS)
     assert set(DATE_FIELDS) <= set(FIELDS)
     assert not set(AMOUNT_FIELDS) & set(DATE_FIELDS)
-    assert FIELD_INDEX == {n: i for i, n in enumerate(FIELDS)}
+    assert {n: i for i, n in enumerate(FIELDS)} == FIELD_INDEX
 
 
 def test_field_truth_all_spans_orders_primary_first():

@@ -100,6 +100,10 @@ class StubClient(LLMClient):
         anchor: int | None = None
         n = len(tokens)
         for i in range(n):
+            if not normed[i]:
+                # See gdx.baselines.heuristic.find_label_positions: a token with
+                # no letters must not start a label match.
+                continue
             for syn in synonyms:
                 if not syn:
                     continue

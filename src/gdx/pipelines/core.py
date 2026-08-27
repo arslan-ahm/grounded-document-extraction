@@ -205,7 +205,10 @@ def run_single(cfg: Config, arms: tuple[Arm, ...] | None = None) -> dict[str, An
     """
     from gdx.arms import ARMS
 
-    arms = arms or tuple(a for a in ARMS if a.source == cfg.model.head)
+    # `arms is None` rather than `not arms`: an explicitly empty tuple is a
+    # caller error and must raise, not silently fall back to the defaults.
+    if arms is None:
+        arms = tuple(a for a in ARMS if a.source == cfg.model.head)
     if not arms:
         raise ValueError(f"no arms defined for head {cfg.model.head!r}")
     run_dir = cfg.run_dir

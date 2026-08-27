@@ -19,7 +19,6 @@ from dataclasses import replace
 
 import pytest
 
-from gdx.config import DataConfig
 from gdx.data.generator import DROPPABLE, _budget_items, _money, generate_dataset, generate_document
 from gdx.data.schema import (
     AMOUNT_FIELDS,

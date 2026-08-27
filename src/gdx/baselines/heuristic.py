@@ -102,6 +102,11 @@ def find_label_positions(doc: Document, field_name: str) -> list[tuple[int, int]
     hits: list[tuple[int, int]] = []
     n = len(words)
     for i in range(n):
+        if not words[i]:
+            # A token with no letters normalises to "", so starting a match on it
+            # would let "1.00 Total" match the label "Total" one token early and
+            # emit a spurious duplicate hit.
+            continue
         for syn in synonyms:
             if not syn:
                 continue
