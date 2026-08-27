@@ -20,6 +20,7 @@ from gdx.pipelines.ablations import (
     run_model_ablations,
     run_verify_ablations,
     summarise_ablations,
+    train_shared_span,
 )
 
 
@@ -33,10 +34,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     cfg = load_config(args.config, args.overrides)
+    # One shared training run backs the inference ablations and the training
+    # ablations' `full` row, so the seed is not paid for twice.
+    shared = None if args.summarise and args.kind == "none" else train_shared_span(cfg, args.seed)
     if args.kind in ("inference", "both"):
-        run_verify_ablations(cfg, args.seed)
+        run_verify_ablations(cfg, args.seed, shared=shared)
     if args.kind in ("training", "both"):
-        run_model_ablations(cfg, args.seed)
+        run_model_ablations(cfg, args.seed, shared=shared)
     if args.summarise:
         print(summarise_ablations().to_string(index=False))
     return 0

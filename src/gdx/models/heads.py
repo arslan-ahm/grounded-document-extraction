@@ -119,6 +119,7 @@ class SpanHead(nn.Module):
         end_logits: torch.Tensor,
         lengths: list[int],
         top_k: int = 5,
+        pages: list[np.ndarray] | None = None,
     ) -> list[list[SpanPrediction]]:
         """Greedy decode with an admissibility mask, plus the top-``k`` runners-up.
 
@@ -130,6 +131,8 @@ class SpanHead(nn.Module):
             end_logits: ``(B, F, L)``.
             lengths: Real token count per document (excluding ``[CLS]``).
             top_k: Candidates retained per field.
+            pages: Per document, the page index of each token. Required for the
+                grounding guarantee -- see :func:`_decode_one`.
 
         Returns:
             ``B`` lists of ``F`` :class:`SpanPrediction`, in document coordinates.
@@ -138,11 +141,18 @@ class SpanHead(nn.Module):
         p_end = torch.softmax(end_logits.float(), dim=-1).cpu().numpy()
         out: list[list[SpanPrediction]] = []
         for b, n_tokens in enumerate(lengths):
+            page = None if pages is None else pages[b]
             per_doc: list[SpanPrediction] = []
             for f, name in enumerate(FIELDS):
                 per_doc.append(
                     _decode_one(
-                        p_start[b, f], p_end[b, f], n_tokens, self.max_span_len, name, top_k
+                        p_start[b, f],
+                        p_end[b, f],
+                        n_tokens,
+                        self.max_span_len,
+                        name,
+                        top_k,
+                        page,
                     )
                 )
             out.append(per_doc)
@@ -156,6 +166,7 @@ def _decode_one(
     max_span_len: int,
     field_name: str,
     top_k: int,
+    pages: np.ndarray | None = None,
 ) -> SpanPrediction:
     """Decode one field. Sequence index ``i`` is document token ``i - 1``.
 
@@ -163,6 +174,18 @@ def _decode_one(
     version was 30x slower and would have made the *selection* head look slow in
     the latency benchmark against the generative head -- a measurement artefact
     that would have inverted the efficiency claim.
+
+    **Page confinement is load-bearing, not a nicety.** A span whose endpoints
+    sit on different pages concatenates the end of one page with the start of the
+    next; its text is a sequence of document tokens but is *not* a contiguous
+    region of the document, it has no union box, and the provenance predicate
+    correctly refuses to find it. Allowing such spans in the candidate space broke
+    the no-hallucination invariant -- ``test_untrained_span_model_never_hallucinates``
+    caught it on 3 of 8 seeds with an emitted value of ``"of 2 Invoice No"``
+    spliced across a page break. The guarantee holds only when the candidate space
+    is exactly the set of spans the provenance check accepts, so the mask enforces
+    it here. Pages are non-decreasing in reading order, so equality of the two
+    endpoints implies every token between them is on the same page.
     """
     null = float(ps[0] * pe[0])
     if n_tokens <= 0:
@@ -171,6 +194,9 @@ def _decode_one(
     rows = np.arange(n_tokens)[:, None]
     cols = np.arange(n_tokens)[None, :]
     admissible = (cols >= rows) & (cols - rows < max_span_len)
+    if pages is not None:
+        page = np.asarray(pages[:n_tokens])
+        admissible = admissible & (page[:, None] == page[None, :])
     masked = np.where(admissible, outer, 0.0)
     total = null + float(masked.sum())
     if not np.isfinite(total) or total <= 0.0:

@@ -54,16 +54,29 @@ MODEL_ABLATIONS: tuple[tuple[str, dict[str, Any]], ...] = (
 )
 
 
-def run_verify_ablations(cfg: Config, seed: int) -> pd.DataFrame:
+def run_verify_ablations(
+    cfg: Config, seed: int, shared: tuple[Any, dict[str, Any], Any, list] | None = None
+) -> pd.DataFrame:
     """All inference-time ablations on one span checkpoint.
 
     Trains once, decodes once, then re-runs only the verification loop under each
     switch. The candidate sets are byte-identical across rows by construction.
+
+    Args:
+        cfg: Configuration.
+        seed: Seed.
+        shared: An already-trained ``(model, history, splits_test, candidates)``
+            tuple, so the training-time ablation's ``full`` arm and this one can
+            share a single ~3-minute training run instead of paying for it twice.
     """
-    prepared = prepare(cfg, seed=seed)
-    model, history = train_head(cfg, prepared, "span", None)
-    test = prepared.splits.test
-    candidates = model_candidates(model, test, cfg)
+    if shared is None:
+        prepared = prepare(cfg, seed=seed)
+        model, history = train_head(cfg, prepared, "span", None)
+        test = prepared.splits.test
+        candidates = model_candidates(model, test, cfg)
+    else:
+        model, history, test, candidates = shared
+    del model
 
     rows: list[dict[str, Any]] = []
     for name, overrides in VERIFY_ABLATIONS:
@@ -93,17 +106,26 @@ def run_verify_ablations(cfg: Config, seed: int) -> pd.DataFrame:
     return frame
 
 
-def run_model_ablations(cfg: Config, seed: int) -> pd.DataFrame:
-    """Training-time ablations: one retrain each, evaluated with the full loop."""
+def run_model_ablations(
+    cfg: Config, seed: int, shared: tuple[Any, dict[str, Any], Any, list] | None = None
+) -> pd.DataFrame:
+    """Training-time ablations: one retrain each, evaluated with the full loop.
+
+    ``shared`` supplies an already-trained full model so the ``full`` row does not
+    pay for a second identical training run.
+    """
     rows: list[dict[str, Any]] = []
     arm = ARM_BY_NAME["span_verify"]
     for name, overrides in MODEL_ABLATIONS:
         started = time.perf_counter()
         local = replace(cfg, model=replace(cfg.model, head="span", **overrides))
-        prepared = prepare(local, seed=seed)
-        model, history = train_head(local, prepared, "span", None)
-        test = prepared.splits.test
-        candidates = model_candidates(model, test, local)
+        if name == "full" and shared is not None:
+            model, history, test, candidates = shared
+        else:
+            prepared = prepare(local, seed=seed)
+            model, history = train_head(local, prepared, "span", None)
+            test = prepared.splits.test
+            candidates = model_candidates(model, test, local)
         result = evaluate_arm(arm, test, candidates, local)
         rows.append(
             result.to_row(
@@ -186,3 +208,17 @@ def summarise_ablations(
     out = pd.DataFrame(rows).sort_values(["kind", "metric", "ablation"]).reset_index(drop=True)
     out.to_csv(tables_dir / "ablations.csv", index=False)
     return out
+
+
+def train_shared_span(cfg: Config, seed: int):  # noqa: ANN201
+    """Train the full span model once and return everything the ablations need.
+
+    Returns ``(model, history, test_split, candidates)``. Sharing this across both
+    ablation families removes a redundant training run per seed, which on this
+    machine is three minutes of the project's two-hour compute budget.
+    """
+    prepared = prepare(cfg, seed=seed)
+    model, history = train_head(cfg, prepared, "span", None)
+    test = prepared.splits.test
+    candidates = model_candidates(model, test, cfg)
+    return model, history, test, candidates

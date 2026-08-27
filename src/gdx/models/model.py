@@ -9,6 +9,7 @@ schedule gets mistaken for a difference in method.
 
 from __future__ import annotations
 
+import numpy as np
 import torch
 from torch import nn
 
@@ -88,7 +89,12 @@ class GDXModel(nn.Module):
             if self.span_head is not None:
                 start, end = self.span_head(states, batch.mask)
                 lengths = [len(d.tokens) for d in batch.docs]
-                return self.span_head.decode(start, end, lengths, top_k=top_k)
+                # Page indices are passed so the candidate space cannot contain a
+                # span spliced across a page break; see SpanHead._decode_one.
+                pages = [
+                    np.asarray([t.page for t in d.tokens], dtype=np.int64) for d in batch.docs
+                ]
+                return self.span_head.decode(start, end, lengths, top_k=top_k, pages=pages)
             assert self.gen_head is not None
             return self.gen_head.decode(states, batch.mask)
         finally:

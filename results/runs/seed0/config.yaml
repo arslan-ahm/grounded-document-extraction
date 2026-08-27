@@ -1,0 +1,59 @@
+baseline:
+  heuristic_variant: auto
+  llm_backend: stub
+  llm_model: offline-stub
+  llm_temperature: 0.0
+data:
+  box_jitter: 0.006
+  distractor_prob: 0.85
+  duplicate_total_prob: 0.45
+  max_pages: 3
+  max_tokens: 192
+  missing_field_prob: 0.18
+  multi_page_prob: 0.35
+  n_test: 400
+  n_train: 1200
+  n_val: 300
+  real_dataset: ''
+  real_root: data/raw
+  rotation_deg: 1.2
+  seed: 0
+  split_seed_offset: 10000
+  verbose_date_prob: 0.3
+model:
+  d_ff: 128
+  d_model: 64
+  dec_hidden: 96
+  dec_max_len: 20
+  dropout: 0.1
+  head: span
+  max_span_len: 6
+  n_heads: 4
+  n_layers: 2
+  n_pos_bands: 8
+  n_spatial_buckets: 9
+  use_2d_pos: true
+  use_spatial_bias: true
+  vocab_size: 512
+optim:
+  batch_size: 16
+  epochs: 6
+  grad_clip: 1.0
+  label_smoothing: 0.0
+  lr: 0.003
+  warmup_frac: 0.1
+  weight_decay: 0.0001
+run:
+  n_threads: 2
+  name: gdx_span
+  out_dir: results/runs
+  save_per_item: true
+  seed: 0
+verify:
+  abstain: true
+  arithmetic: true
+  arithmetic_tol: 0.011
+  enabled: true
+  max_iters: 3
+  min_confidence: 0.0
+  type_check: true
