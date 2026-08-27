@@ -82,8 +82,10 @@ def _sample_content(rng: np.random.Generator, cfg: DataConfig, n_items: int) -> 
     ]
     if rng.random() < 0.6:
         vendor.append(lex.VENDOR_SUFFIX[int(rng.integers(0, len(lex.VENDOR_SUFFIX)))])
-    inv_id = f"{lex.ID_PREFIXES[int(rng.integers(0, len(lex.ID_PREFIXES)))]}-{int(rng.integers(100, 99_999)):05d}"
-    po_id = f"{lex.PO_PREFIXES[int(rng.integers(0, len(lex.PO_PREFIXES)))]}-{int(rng.integers(100, 99_999)):05d}"
+    inv_prefix = lex.ID_PREFIXES[int(rng.integers(0, len(lex.ID_PREFIXES)))]
+    inv_id = f"{inv_prefix}-{int(rng.integers(100, 99_999)):05d}"
+    po_prefix = lex.PO_PREFIXES[int(rng.integers(0, len(lex.PO_PREFIXES)))]
+    po_id = f"{po_prefix}-{int(rng.integers(100, 99_999)):05d}"
     issued = _dt.date(2023, 1, 1) + _dt.timedelta(days=int(rng.integers(0, 900)))
     due = issued + _dt.timedelta(days=int(rng.choice([14, 21, 30, 45, 60])))
 
