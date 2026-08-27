@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gdx"
+version = "1.0.0"
+description = "Provenance-grounded document extraction with a bounded verification loop"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Arslan Ahmad" }]
+keywords = [
+    "document-understanding",
+    "information-extraction",
+    "visually-rich-documents",
+    "graph-neural-networks",
+    "hallucination",
+    "grounding",
+    "calibration",
+    "selective-prediction",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: General",
+]
+dependencies = [
+    "torch>=2.2",
+    "numpy>=1.24",
+    "scipy>=1.11",
+    "pandas>=2.0",
+    "pillow>=10.0",
+    "pyyaml>=6.0",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "ruff>=0.6", "nbformat>=5.9", "nbconvert>=7.10", "ipykernel>=6.29"]
+ocr = ["pytesseract>=0.3.10"]
+
+[project.scripts]
+gdx = "gdx.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/arslan-ahmad/grounded-document-extraction"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = ["slow: marks tests that take more than a few seconds"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008", "E741"]
