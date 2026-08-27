@@ -172,13 +172,18 @@ def decode_scaling(cfg: Config, prepared: Prepared,
     return pd.DataFrame(rows)
 
 
-def baseline_cost(cfg: Config, prepared: Prepared, n_docs: int = 40) -> pd.DataFrame:
+def baseline_cost(cfg: Config, prepared: Prepared, n_docs: int = 20) -> pd.DataFrame:
     """Per-document cost of the non-neural arms: rule latency and LLM tokens.
 
     The LLM row is a **token count, not a latency**: the stub answers instantly
     and timing it would be meaningless. Tokens are counted by whitespace, which
     understates a real BPE tokeniser on numeric text, so the figure is a lower
     bound on what a provider would bill.
+
+    The rule baseline is timed under the *same* protocol as the neural arms --
+    :data:`N_WARMUP` warm-up and :data:`N_REPEATS` timed repeats -- rather than a
+    reduced one. An earlier version divided both by four and produced an IQR
+    larger than the median, which is not a measurement.
     """
     docs = prepared.splits.test.docs[:n_docs]
     variant = VARIANT_BY_NAME.get(
@@ -191,7 +196,7 @@ def baseline_cost(cfg: Config, prepared: Prepared, n_docs: int = 40) -> pd.DataF
         for doc in docs:
             verify_document(doc, heuristic_candidates(doc, variant), verify_cfg)
 
-    timing = benchmark_callable(run_heuristic, max(2, N_WARMUP // 4), max(5, N_REPEATS // 4))
+    timing = benchmark_callable(run_heuristic, N_WARMUP, N_REPEATS)
     from gdx.data.schema import FIELDS
     from gdx.llm.client import count_tokens
 
@@ -205,9 +210,12 @@ def baseline_cost(cfg: Config, prepared: Prepared, n_docs: int = 40) -> pd.DataF
                 "arm": "heuristic",
                 "metric": "latency_per_doc_ms",
                 "value": timing.median_ms / len(docs),
-                "iqr_ms": timing.iqr_ms,
+                "iqr_ms": timing.iqr_ms / len(docs),
                 "n_docs": len(docs),
-                "note": f"variant {variant.name}, warmup {timing.n_warmup}",
+                "note": (
+                    f"variant {variant.name}; {timing.n_warmup} warm-up, "
+                    f"{timing.n_repeats} repeats; includes the verification loop"
+                ),
             },
             {
                 "arm": "llm_stub",
