@@ -1,0 +1,4 @@
+arm,metric,value,iqr_ms,n_docs,note
+heuristic,latency_per_doc_ms,7.5226975000987295,55.58190000010654,40,"variant row_first, warmup 2"
+llm_stub,prompt_tokens_per_doc,1119.4,,40,"8 calls/doc, whitespace tokens, lower bound"
+span_verify,prompt_tokens_per_doc,0.0,,40,no provider call; local model

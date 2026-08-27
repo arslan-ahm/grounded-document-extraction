@@ -64,6 +64,11 @@ src = ["src", "scripts", "tests"]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = ["B008", "E741"]
 
+[tool.ruff.lint.per-file-ignores]
+# Notebook cell sources are string literals -- data, not code -- and wrapping
+# them to 100 columns would change what the notebook shows the reader.
+"scripts/build_notebooks.py" = ["E501"]
+
 [tool.ruff.lint.isort]
 known-first-party = ["gdx"]
 # scripts/_bootstrap.py puts src/ on sys.path and caps CPU threads; it must be

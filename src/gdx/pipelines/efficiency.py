@@ -140,7 +140,6 @@ def decode_scaling(cfg: Config, prepared: Prepared,
     Whether the measurement agrees is reported either way.
     """
     test = prepared.splits.test
-    batch = _batch_of(test, 8)
     rows: list[dict[str, Any]] = []
     for head in ("span", "generative"):
         times: list[float] = []
@@ -170,7 +169,6 @@ def decode_scaling(cfg: Config, prepared: Prepared,
         for row in rows[-len(lengths) :]:
             row["fitted_exponent"] = exponent
         LOG.info("%s decode cost exponent in value length: %.3f", head, exponent)
-        del batch
     return pd.DataFrame(rows)
 
 
