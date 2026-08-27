@@ -66,7 +66,6 @@ class ModelConfig:
     d_ff: int = 128
     dropout: float = 0.1
     vocab_size: int = 512
-    n_shape_classes: int = 24
     # 2-D layout signal. `use_2d_pos` adds the hand-rolled sinusoidal box
     # encoding; `use_spatial_bias` adds the relative-geometry attention bias.
     use_2d_pos: bool = True
