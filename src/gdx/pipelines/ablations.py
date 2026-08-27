@@ -205,7 +205,15 @@ def summarise_ablations(
                         "n_seeds": int(len(sub)),
                     }
                 )
-    out = pd.DataFrame(rows).sort_values(["kind", "metric", "ablation"]).reset_index(drop=True)
+    columns = [
+        "kind", "ablation", "switch", "metric", "value", "full_value", "delta",
+        "noise_scale", "ratio_to_noise", "verdict", "n_seeds",
+    ]
+    # An empty frame still needs its columns, or the sort below raises a KeyError
+    # and a caller cannot tell "nothing to summarise" from "the code is broken".
+    out = pd.DataFrame(rows, columns=columns)
+    if not out.empty:
+        out = out.sort_values(["kind", "metric", "ablation"]).reset_index(drop=True)
     out.to_csv(tables_dir / "ablations.csv", index=False)
     return out
 
