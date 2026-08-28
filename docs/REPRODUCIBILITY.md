@@ -111,15 +111,29 @@ Wall-clock measured on this machine at two threads.
 
 | stage | wall-clock |
 |---|---|
-| `configs/smoke.yaml` end to end | ~35 s |
-| span head, 1200 documents, 6 epochs | ~3.5 min |
-| generative head, same budget | ~8 min |
-| one seed of the seven-arm matrix (both heads + all evaluations) | ~15 min |
-| one seed of the ablation matrix (3 trainings + 9 evaluations) | ~14 min |
+| `configs/smoke.yaml` end to end | under 1 min |
+| span head, 1200 documents, 6 epochs | 129-278 s |
+| generative head, same budget | 591-1842 s |
+| one seed of the seven-arm matrix (both heads + all evaluations) | 778-2180 s |
+| one seed of the ablation matrix (3 trainings + 9 evaluations) | ~10-14 min |
 | efficiency benchmark (latency + decode scaling + token cost) | ~2.5 min |
-| `scripts/analyse.py` | ~10 s |
-| notebooks 01-04, executed | ~9 min |
-| **total for everything in `results/`** | **~95 min** |
+| the invariant measurement (1064592 spans + 8 untrained seeds) | ~2 min |
+| `scripts/analyse.py` | ~30 s |
+| notebooks 01-04, executed | ~10 min |
+| **total for everything in `results/`** | **~2.5 h** |
+
+Those ranges are wide because **this machine was shared with other jobs while the
+matrix ran**. The same seed's generative head took 591 s uncontended and 1842 s
+under load. That variability is why the latency table is measured separately with
+warm-up and IQR rather than read off the training log, and it is why every timing
+figure here is a range rather than a point.
+
+The project's stated compute guideline was two hours; it came to about two and a
+half, and the overrun is one deliberate item: the longer-schedule generative run
+in `docs/RESULTS.md` section 9.3, which exists to test whether the reference
+baseline's weakness is a budget artefact. That question is the biggest single
+threat to this repository's accuracy claims, so it was worth the extra time, and
+the cost is recorded here rather than smoothed over.
 
 The scale is set by that budget, and the honest consequence is stated here: this
 is a **small** study. 1200 training documents, a 64-wide 2-layer encoder, three

@@ -42,7 +42,7 @@ right allocation when the question is whether a difference exceeds noise.
 
 **The scale, stated so it is not mistaken for something larger.** A 64-wide
 2-layer encoder, 1200 training documents, 6 epochs, three seeds, on two CPU
-threads. The structural claims are scale-free. The accuracy comparisons are the
+threads of a shared machine. The structural claims are scale-free. The accuracy comparisons are the
 ones a larger study could move, and §9 says which.
 
 ## 1. Efficiency

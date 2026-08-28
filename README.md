@@ -240,7 +240,7 @@ python scripts/train.py --config configs/smoke.yaml
 # 3. Cost: params, MACs, measured latency, decode scaling, token accounting
 python scripts/benchmark_efficiency.py
 
-# 4. The whole experiment matrix (~95 minutes on 2 threads)
+# 4. The whole experiment matrix (about 2.5 hours on 2 shared threads)
 python scripts/run_all.py
 
 # 5. Tests
@@ -370,7 +370,7 @@ the *same trained weights*, so their deltas contain no initialisation noise.
 
 ```
 configs/            one YAML per experiment, composed through `_base_`
-  base.yaml           shared defaults; smoke.yaml ~35 s end to end
+  base.yaml           shared defaults; smoke.yaml runs in under a minute
   span / generative   the method and its reference baseline
   no_2d_pos / no_spatial_bias / no_verify   one switch each
   real_funsd.yaml     optional real-data path (no committed number)
