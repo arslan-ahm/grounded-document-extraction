@@ -28,7 +28,8 @@ import pandas as pd
 from gdx.config import load_config
 from gdx.pipelines.experiments import TABLES
 
-STAGES = ("bench", "experiments", "ablations", "analyse", "determinism", "figures", "docs")
+STAGES = ("bench", "experiments", "ablations", "invariant", "analyse", "determinism",
+          "figures", "docs")
 
 
 def _have(name: str, min_rows: int = 1) -> bool:
@@ -88,6 +89,11 @@ def main(argv: list[str] | None = None) -> int:
             shared = train_shared_span(cfg, seed)
             run_verify_ablations(cfg, seed, shared=shared)
             run_model_ablations(cfg, seed, shared=shared)
+
+    if "invariant" in stages and (args.force or not _have("invariant")):
+        from gdx.pipelines.invariant import measure_invariant
+
+        measure_invariant(cfg)
 
     if "analyse" in stages:
         from gdx.pipelines.ablations import summarise_ablations
