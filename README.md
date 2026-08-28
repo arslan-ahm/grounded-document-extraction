@@ -11,10 +11,11 @@ rather than generation: every emitted value carries the token span it was read
 from, and a value whose provenance does not verify is abstained on.**
 
 **Efficiency axis — decode cost, measured.** Against the same encoder with a
-generative head: **9.31x lower end-to-end latency** (17.73 ms vs 164.96 ms,
-batch 1, 154 tokens, 10 warm-up / 30 repeats), 7.26x fewer MACs, 89.7x fewer head
-parameters. The gap is *asymptotic in value length*: fitted decode-cost exponent
-**0.078 for selection against 0.755 for generation**.
+generative head: **9.306322x lower end-to-end latency** (17.72595 ms against
+164.9634 ms, batch 1, 154 tokens, 10 warm-up / 30 timed repeats), 7.258041x fewer
+MACs, and a head of 1040 parameters against 93290. The gap is *asymptotic in value
+length*: fitted decode-cost exponent **0.077604 for selection against 0.755079 for
+generation**.
 
 The approach this replaces runs a model over the page, has it emit a **string**
 per field, and trusts the string. A hallucinated total and a correctly-read total
@@ -24,9 +25,49 @@ a **pair of token indices** instead. The value is whatever those indices span, s
 a string that appears nowhere in the document is not a low-probability output: it
 is not in the output space at all.
 
-> **Result, up front.** This block is filled from `results/tables/` by the
-> cross-check pass; see `docs/RESULTS.md` for every number and its source CSV.
-> `PENDING_NUMBERS`
+> **Result, up front — including the parts that are not flattering.**
+>
+> **The guarantee holds, exactly.** Zero ungrounded values from the span arms
+> across 3 seeds and 9,600 (document, field) pairs, against a hallucination rate
+> of 0.998597 for the generative reference approach on the same encoder, same
+> data, same budget, same seed. It also holds for *untrained* networks, which is
+> the point: it does not depend on the model being any good.
+>
+> **But the checker, not the head, is what removes hallucinated values.** The same
+> provenance check applied to the generative arm (`generative_verify`) also
+> reaches 0.0 — by abstaining almost completely, at 0.001250 coverage against
+> 0.890938. Selection's real contribution is that it satisfies the check *for
+> free*, at 0.877188 coverage, and needs no checker to be safe. This is the single
+> most important qualification in the repository, and it exists because the arm
+> capable of refuting the broad claim was built and reported.
+>
+> **Selection beats the strong rule baseline.** +0.130208 canonical accuracy at
+> **9.362311x** the run-to-run noise scale, +0.119583 coverage at 6.130715x. The
+> rule baseline is not a strawman: all label synonyms, same-row *and* below-label
+> geometry, best of six configurations chosen on validation — and it inherits the
+> same grounding guarantee, because it also selects.
+>
+> **The verification loop buys grounding, not accuracy.** Against the identical
+> weights with the loop off: exact-span grounding +0.026098 at 4.207149x
+> (**robust**), coverage −0.044375 at 2.274987x (**a real cost**), and canonical
+> accuracy +0.010208 at 0.734005x — **inside noise**. The loop does not
+> demonstrably improve accuracy at this scale.
+>
+> **The ideology's cost is exactly zero where it applies.** On the 211 test fields
+> written in a form that is not the target, *every* selection-based arm — this
+> method, its verification-free ablation, and the rule baseline — scores
+> **0.000000** strict accuracy, against 0.941682 on verbatim fields. A
+> deterministic date parser recovers it to 0.995261 and **weakens the guarantee**,
+> which is stated wherever that arm appears.
+>
+> **And the reference approach is undertrained at this budget.** `generative`
+> reaches 0.047708 canonical accuracy with its validation loss plateauing near
+> 1.001558 nats per character. The hallucination comparison is structural and does
+> not depend on that; the *accuracy* comparison does, and §9.3 of
+> [docs/RESULTS.md](docs/RESULTS.md) says so.
+>
+> Full tables, the seed study, every ablation and every retraction:
+> **[docs/RESULTS.md](docs/RESULTS.md)**.
 
 ---
 
