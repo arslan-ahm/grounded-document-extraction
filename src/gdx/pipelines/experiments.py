@@ -192,12 +192,23 @@ def seed_variance(runs: pd.DataFrame, metrics: tuple[str, ...] = METRIC_FAMILY) 
     return pd.DataFrame(out).sort_values(["metric", "arm"]).reset_index(drop=True)
 
 
-def verdict_table(runs: pd.DataFrame, variance: pd.DataFrame) -> pd.DataFrame:
-    """Every arm against :data:`REFERENCE_ARM`, placed on the noise scale.
+def verdict_table(
+    runs: pd.DataFrame, variance: pd.DataFrame, reference: str = REFERENCE_ARM
+) -> pd.DataFrame:
+    """Every arm against ``reference``, placed on the noise scale.
 
-    The noise scale used is the *reference* arm's, which is the conservative
-    choice when the two arms differ in variability: it asks whether the gap could
-    have come from reseeding the thing being improved upon.
+    The noise scale used is the **larger** of the two arms' scales, which is the
+    conservative choice: a gap has to clear the variability of whichever arm is
+    noisier before it counts as more than reseeding. Using the reference's scale
+    alone would flatter a comparison whose *other* side happens to be unstable.
+
+    Args:
+        runs: One row per (arm, seed).
+        variance: Output of :func:`seed_variance`.
+        reference: The arm every other arm is compared against. Two tables are
+            shipped -- against the generative reference approach, and against the
+            rule baseline, which is the stronger competitor and therefore the more
+            informative comparison.
     """
     means = runs.groupby("arm").mean(numeric_only=True)
     scales = {
@@ -205,18 +216,23 @@ def verdict_table(runs: pd.DataFrame, variance: pd.DataFrame) -> pd.DataFrame:
     }
     out: list[dict[str, Any]] = []
     for metric in METRIC_FAMILY:
-        if metric not in means.columns or REFERENCE_ARM not in means.index:
+        if metric not in means.columns or reference not in means.index:
             continue
-        ref = float(means.loc[REFERENCE_ARM, metric])
-        scale = scales.get((REFERENCE_ARM, metric), np.nan)
+        ref = float(means.loc[reference, metric])
+        ref_scale = scales.get((reference, metric), np.nan)
         for arm in means.index:
-            if arm == REFERENCE_ARM:
+            if arm == reference:
                 continue
+            arm_scale = scales.get((arm, metric), np.nan)
+            scale = np.nanmax([ref_scale, arm_scale]) if np.isfinite(
+                [ref_scale, arm_scale]
+            ).any() else np.nan
             value = float(means.loc[arm, metric])
             delta = value - ref
             out.append(
                 {
                     "arm": arm,
+                    "reference": reference,
                     "metric": metric,
                     "value": value,
                     "reference_value": ref,

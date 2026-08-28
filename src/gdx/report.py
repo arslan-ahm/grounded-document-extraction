@@ -123,6 +123,15 @@ def table_verdicts() -> str:
     )
 
 
+def table_verdicts_vs_heuristic() -> str:
+    """Every arm against the rule baseline, the stronger of the two references."""
+    return to_markdown(
+        _read("verdicts_vs_heuristic"),
+        ["arm", "metric", "value", "reference_value", "delta", "noise_scale",
+         "ratio_to_noise", "verdict"],
+    )
+
+
 def table_seed_variance() -> str:
     return to_markdown(
         _read("seed_variance"),
@@ -233,6 +242,7 @@ def table_heuristic_sweep() -> str:
 ALL: dict[str, Callable[[], str]] = {
     "method": table_method,
     "verdicts": table_verdicts,
+    "verdicts_vs_heuristic": table_verdicts_vs_heuristic,
     "seed_variance": table_seed_variance,
     "statistical_tests": table_statistical_tests,
     "normalisation_cost": table_normalisation_cost,
