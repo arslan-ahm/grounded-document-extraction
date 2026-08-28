@@ -321,10 +321,13 @@ run-to-run scale.
 <!-- /table -->
 
 Against the generative reference approach, every arm's accuracy gap is far outside
-noise — but the ratios (up to 139.11365x) are large mostly because `generative` is
-both very low and very stable, so its noise scale is only 0.006515. A ratio that
-size is not a more confident claim than one at 10x; it is a claim about a
-comparison whose denominator is small. The grounding rows come back `unknown`
+noise — `span_verify` at 65.206623x on canonical accuracy, and the largest ratio in
+the table 119.208295x. Those numbers are large mostly because `generative` is both
+very low and very stable: its canonical-accuracy noise scale is 0.006515, and the
+verdict uses the larger of the two arms' scales. **A ratio of 65 is not a more
+confident claim than one of 10**; it is a claim about a comparison whose
+denominator is small, and it should be read as "far outside noise" and nothing
+more precise. The grounding rows come back `unknown`
 because generation makes no span claim at all: there is nothing to compare.
 
 The more informative comparison is against the rule baseline, which is the

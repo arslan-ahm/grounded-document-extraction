@@ -66,7 +66,11 @@ def _prose(path: Path) -> str:
 def _numbers(text: str) -> set[str]:
     """Decimal literals with at least :data:`MIN_DECIMALS` places."""
     out = set()
-    for match in re.finditer(r"(?<![\w.])(\d+\.\d+)(?![\w.])", text):
+    # The lookahead rejects only a following digit or dot, not any word
+    # character. An earlier version rejected `[\w.]`, which silently skipped
+    # every ratio written as "9.362311x" -- and those are most of the numbers in
+    # docs/RESULTS.md. The hole let one stale value survive a full pass.
+    for match in re.finditer(r"(?<![\w.])(\d+\.\d+)(?![\d.])", text):
         value = match.group(1)
         if len(value.split(".")[1]) >= MIN_DECIMALS:
             out.add(value)
