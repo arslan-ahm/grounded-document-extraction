@@ -1,0 +1,6 @@
+source,population,n_seeds,n_documents,n_opportunities,n_ungrounded,rate
+enumerated spans (no model),"all admissible spans, all fields",8,200,1064592,0,0.0
+untrained span head,"25 documents/seed, verification off",8,200,1598,0,0.0
+untrained gen. head,"25 documents/seed, verification off",8,200,1567,1567,1.0
+trained span head,"committed test-split per-item CSVs, verification off",3,1200,8847,0,0.0
+trained gen. head,"committed test-split per-item CSVs, verification off",3,1200,8498,8486,0.9985879030360084

@@ -236,10 +236,9 @@ an artefact of training), and the emissions of trained checkpoints
 purpose — with the checker on, a zero would be unremarkable.
 
 `tests/test_invariant_no_hallucination.py` asserts the same property as a test,
-including a deliberately-injected absent string to prove the detector fires. A
-denominator with no positives anywhere would mean the detector was broken rather
-than that nothing hallucinates, so the generative control has to produce a
-non-zero count, and it does.
+over 8 seeds, including a deliberately-injected absent string to prove the
+detector fires and an adversarial-span case (inverted, out-of-range, cross-page)
+to prove no malformed selection escapes as a value.
 
 ## 4. The measured cost of the ideology
 

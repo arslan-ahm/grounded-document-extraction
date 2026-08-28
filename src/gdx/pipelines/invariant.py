@@ -31,12 +31,13 @@ import pandas as pd
 from gdx.arms import gen_candidates, span_candidates
 from gdx.config import Config
 from gdx.data.dataset import DocumentDataset
+from gdx.data.featurise import build_vocabulary
 from gdx.data.generator import generate_dataset
 from gdx.data.schema import FIELDS, MAX_VALUE_SPAN, canonical_value
 from gdx.models.model import build_model
-from gdx.pipelines.core import prepare
 from gdx.pipelines.experiments import TABLES
 from gdx.utils.logging import get_logger
+from gdx.utils.seed import seed_everything
 from gdx.verify import verify_document
 
 LOG = get_logger(__name__)
@@ -69,24 +70,22 @@ def enumerate_spans(cfg: Config, seeds: tuple[int, ...], n_docs: int = 25) -> di
     }
 
 
-def _emitted_counts(cfg: Config, head: str, seeds: tuple[int, ...], n_docs: int,
-                    trained: bool) -> dict[str, Any]:
-    """Count emissions and ungrounded emissions for one head across seeds."""
-    from gdx.pipelines.core import train_head
-
+def _untrained_counts(cfg: Config, head: str, seeds: tuple[int, ...],
+                      n_docs: int) -> dict[str, Any]:
+    """Count emissions and ungrounded emissions for an *untrained* head."""
+    # Only the vocabulary is needed, so the splits are not built. Calling
+    # `prepare` here regenerated 1900 documents per seed for nothing and made
+    # this measurement take twenty minutes instead of one.
+    vocab = build_vocabulary(cfg.model.vocab_size)
     total = ungrounded = 0
     for seed in seeds:
-        prepared = prepare(cfg, seed=seed)
-        if trained:
-            model, _ = train_head(cfg, prepared, head, None)
-            data = prepared.splits.test
-        else:
-            model = build_model(replace(cfg.model, head=head), prepared.vocab.size, seed=seed)
-            data = DocumentDataset(
-                generate_dataset(n_docs, cfg.data, seed=seed + 500),
-                prepared.vocab,
-                cfg.model.dec_max_len,
-            )
+        seed_everything(seed, cfg.run.n_threads)
+        model = build_model(replace(cfg.model, head=head), vocab.size, seed=seed)
+        data = DocumentDataset(
+            generate_dataset(n_docs, cfg.data, seed=seed + 500),
+            vocab,
+            cfg.model.dec_max_len,
+        )
         for batch in data.batches(cfg.optim.batch_size, shuffle=False):
             for doc, pred in zip(batch.docs, model.predict(batch), strict=True):
                 cands = span_candidates(pred) if head == "span" else gen_candidates(pred)
@@ -125,7 +124,7 @@ def measure_invariant(
     LOG.info("enumerated %d spans, %d ungrounded", row["n_opportunities"], row["n_ungrounded"])
 
     for head, label in (("span", "untrained span head"), ("generative", "untrained gen. head")):
-        row = _emitted_counts(cfg, head, untrained_seeds, n_docs, trained=False)
+        row = _untrained_counts(cfg, head, untrained_seeds, n_docs)
         row["source"] = label
         row["population"] = f"{n_docs} documents/seed, verification off"
         row["n_documents"] = len(untrained_seeds) * n_docs
@@ -133,11 +132,12 @@ def measure_invariant(
         LOG.info("%s: %d emitted, %d ungrounded", label, row["n_opportunities"],
                  row["n_ungrounded"])
 
-    for head, label in (("span", "trained span head"), ("generative", "trained gen. head")):
-        row = _emitted_counts(cfg, head, trained_seeds, cfg.data.n_test, trained=True)
+    for arm, label in (("span_only", "trained span head"), ("generative", "trained gen. head")):
+        row = _trained_counts_from_per_item(arm)
+        if row is None:
+            continue
         row["source"] = label
-        row["population"] = "test split, verification off"
-        row["n_documents"] = len(trained_seeds) * cfg.data.n_test
+        row["population"] = "committed test-split per-item CSVs, verification off"
         rows.append(row)
         LOG.info("%s: %d emitted, %d ungrounded", label, row["n_opportunities"],
                  row["n_ungrounded"])
@@ -149,3 +149,30 @@ def measure_invariant(
     TABLES.mkdir(parents=True, exist_ok=True)
     frame.to_csv(TABLES / "invariant.csv", index=False)
     return frame
+
+
+def _trained_counts_from_per_item(arm: str) -> dict[str, Any] | None:
+    """Trained-model counts read from the committed per-item CSVs.
+
+    Reusing the shipped artefacts rather than retraining is not a shortcut: it
+    means the reported count is the count *for the models whose numbers appear in
+    every other table*, rather than for a fresh model trained only for this check.
+    Both listed arms run with verification disabled -- ``span_only`` by definition,
+    ``generative`` because the reference arm has no verification.
+    """
+    from gdx.pipelines.analysis import load_per_item
+
+    try:
+        frame = load_per_item()
+    except FileNotFoundError:
+        return None
+    subset = frame[(frame["arm"] == arm) & frame["emitted"]]
+    if subset.empty:
+        return None
+    return {
+        "n_seeds": int(frame["seed"].nunique()),
+        "n_documents": int(frame.groupby("seed")["doc_id"].nunique().sum()),
+        "n_opportunities": int(len(subset)),
+        "n_ungrounded": int((~subset["grounded"].astype(bool)).sum()),
+        "rate": float((~subset["grounded"].astype(bool)).mean()),
+    }
