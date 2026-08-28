@@ -95,3 +95,96 @@ request, once per field. The count is whitespace-based, so it understates a real
 BPE tokeniser on numeric text and is a **lower bound** on what a provider would
 bill. The rule baseline's per-document latency is measured under the same
 protocol as the neural arms.
+
+## 2. The seven-arm comparison
+
+<!-- table:method -->
+<!-- /table -->
+
+Seed 0. `heuristic` and both `span` arms select, so their hallucination rate is 0
+by construction. `llm_stub` and `generative` generate. `generative_verify`
+generates *and then checks*, which is the arm a fair reading of the argument
+demands.
+
+Three things to read off this table.
+
+**The reference approach is not competitive at this budget.** `generative`
+reaches 0.049375 canonical accuracy. That is not "generation cannot extract" — it
+is "a character decoder at this capacity and budget cannot reproduce exact
+strings", and §9.3 gives the evidence for which of the two it is.
+
+**`llm_stub` is the honest surprise.** At 0.756563 canonical it is within noise of
+the rule baseline on strict accuracy (0.467572x the noise scale, inside noise)
+despite having no geometry at all. Reading a linearised token stream with
+last-label-wins gets most invoice fields right. It loses on the fields where
+layout disambiguates — see §2.1.
+
+**`span_verify` trades coverage for precision.** 0.987703 precision at 0.864062
+coverage, against `span_only`'s 0.940655 at 0.916250. The verification loop is
+doing what it is for.
+
+### 2.1 Per field
+
+<!-- table:per_field -->
+<!-- /table -->
+
+The fields where selection is near-perfect are the ones with an unambiguous
+anchor: `vendor_name` 1.0 strict, `invoice_id` 0.9975. The hard ones are the
+amounts, where the distractor lines live: `total` 0.8675 strict at 0.8725
+coverage. `invoice_date` shows the normalisation limitation directly — 0.68
+strict against 0.9775 canonical, the gap being exactly the non-ISO dates.
+`po_number`'s 0.555 coverage is not a failure: it is absent from 43% of documents
+and abstention is correct there.
+
+### 2.2 Is the difference significant?
+
+<!-- table:statistical_tests -->
+<!-- /table -->
+
+Paired tests on seed 0, Holm-corrected across the metric family. The unit column
+matters: `document` means per-field values were averaged within a document first,
+because the eight fields of one invoice share a layout and are not independent;
+`set` means the statistic has no per-item value and a paired bootstrap over
+documents was used instead.
+
+**The caveat that applies to all of them.** These condition on **one trained model
+per arm**. They are statements about two sets of weights, not about two methods.
+The method-level question is answered by the seed study below, and where the two
+disagree the seed study wins.
+
+### 2.3 And is it bigger than the noise?
+
+<!-- table:seed_variance -->
+<!-- /table -->
+
+Three seeds of the identical configuration, varying both the initialisation and
+the generated population — which is the honest thing to vary, because reusing one
+dataset across seeds would report initialisation noise only and understate the
+run-to-run scale.
+
+<!-- table:verdicts -->
+<!-- /table -->
+
+Against the generative reference approach, every arm's accuracy gap is far outside
+noise — but the ratios (up to 139.11365x) are large mostly because `generative` is
+both very low and very stable, so its noise scale is only 0.006515. A ratio that
+size is not a more confident claim than one at 10x; it is a claim about a
+comparison whose denominator is small. The grounding rows come back `unknown`
+because generation makes no span claim at all: there is nothing to compare.
+
+The more informative comparison is against the rule baseline, which is the
+stronger competitor:
+
+<!-- table:verdicts_vs_heuristic -->
+<!-- /table -->
+
+* `span_verify` over `heuristic`: **+0.130208 canonical at 9.362311x noise**,
+  **+0.129479 strict at 10.175543x**, **+0.119583 coverage at 6.130715x**. All
+  robust.
+* `span_verify_norm` over `heuristic` on strict accuracy: **+0.194792 at
+  14.523642x**.
+* **Grounding is where the story turns.** `span_verify` beats `heuristic` by
+  +0.025569 at 5.924370x — but `span_only` versus `heuristic` is −0.000529, a
+  ratio of 0.085287, **inside noise**. The learned head is not better at *looking
+  in the right place* than the rule baseline; the verification loop is.
+* `llm_stub` versus `heuristic` on strict accuracy: 0.467572x, **inside noise**.
