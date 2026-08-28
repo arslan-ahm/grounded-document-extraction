@@ -815,16 +815,35 @@ which is exactly the comparison the protocol prescribes — but it is *not* evid
 that generation cannot do this task.
 
 <!-- table:generative_budget -->
-| arm | epochs | strict_accuracy | canonical_accuracy | coverage | hallucination_rate | final_val_loss | n_records |
-|---|---|---|---|---|---|---|---|
-| generative (shared budget) | 6 | 0.0494 | 0.0494 | 0.8909 | 0.9986 | 1.0016 | 3200 |
+| arm | epochs | status | strict_accuracy | canonical_accuracy | coverage | hallucination_rate | final_val_loss | n_records |
+|---|---|---|---|---|---|---|---|---|
+| generative (shared budget) | 6 | evaluated | 0.0494 | 0.0494 | 0.8909 | 0.9986 | 1.0016 | 3200 |
+| generative (long schedule) | 7 | training curve only, not evaluated | n/a | n/a | n/a | n/a | 0.9645 | n/a |
 <!-- /table -->
 
 A character decoder has to learn to spell before it can be right: at roughly 1.0
-nats per character, per-character accuracy of around two thirds compounds to a
-few percent over a ten-character value, which is what is observed. The ranking is
-not in doubt at any budget this study can reach; **the magnitude of the gap is not
-a stable estimate** and should not be quoted as one.
+nats per character, per-character accuracy of around two thirds compounds to a few
+percent over a ten-character value, which is what is observed.
+
+**A longer schedule was attempted twice and both runs were killed by this
+machine's background-job limit before their evaluation stage.** What survives is
+the training curve, and it is committed
+(`results/runs/gdx_generative_long/history.jsonl`): validation loss reaches
+0.964541 by epoch 7 against 1.001558 at the shared budget's
+epoch 6. So longer training does keep improving the decoder, slowly, and the
+accuracy that would result **was not measured**. The table above says
+`training curve only, not evaluated` for that row and leaves its accuracy columns
+`n/a`, because inferring them would be inventing a number.
+
+Two consequences, stated so no reader has to work them out:
+
+* The equal-budget comparison is the one the protocol prescribes and it stands.
+  The *ranking* is not in doubt: nothing about a validation loss falling from
+  1.001558 to 0.964541 closes a gap of 0.906875 canonical
+  accuracy.
+* **The magnitude of the gap is not a stable estimate** and should not be quoted
+  as one. Anyone wanting the converged number has to run the schedule to
+  completion; the command is in `docs/REPRODUCIBILITY.md`.
 
 ### 9.4 Negative: the verification loop does not improve accuracy
 
