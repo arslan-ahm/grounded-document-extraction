@@ -212,7 +212,7 @@ it, and it still cannot fabricate.
 
 **A checked zero.** `generative_verify` reaches zero by *refusing*. Its coverage
 is 0.001250 against `generative`'s 0.890938 — it emits 4 values on seed 0 where
-the unchecked arm emits 2851, and it spends 7.0717 verification iterations per
+the unchecked arm emits 2851, and it spends 7.1175 verification iterations per
 document doing so. The provenance check works perfectly on generated strings; it
 just has almost nothing to accept.
 
@@ -298,9 +298,9 @@ present fields the arm answers — is 0.954955 for `span_verify` against 0.99307
 for `span_only`. The loop declines on about 4% of answerable fields to gain 18
 points of correct-abstention.
 
-The loop's own cost is small: 0.5608 iterations per document on average, with
-0.4650 re-selections (3-seed means). `generative_verify` burns 7.0717 iterations
-per document by comparison, because almost every candidate it is offered fails.
+The loop's own cost is small: on seed 0 it runs 0.6250 iterations per document
+with 0.5125 re-selections. `generative_verify` burns 7.1175 iterations per
+document by comparison, because almost every candidate it is offered fails.
 
 <!-- table:calibration -->
 <!-- /table -->

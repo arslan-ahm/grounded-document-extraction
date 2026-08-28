@@ -81,11 +81,14 @@ def _csv_values() -> set[str]:
         for column in frame.columns:
             series = pd.to_numeric(frame[column], errors="coerce").dropna()
             for raw in series:
-                number = float(raw)
-                for digits in (2, 3, 4, 5, 6):
-                    values.add(f"{number:.{digits}f}")
-                    values.add(f"{number:.{digits}f}".rstrip("0").rstrip("."))
-                values.add(str(number))
+                # Both the signed value and its magnitude: prose legitimately
+                # says "costs 0.044375 coverage" for a delta the CSV stores as
+                # -0.044375, and that is not an unsourced number.
+                for number in (float(raw), abs(float(raw))):
+                    for digits in (2, 3, 4, 5, 6):
+                        values.add(f"{number:.{digits}f}")
+                        values.add(f"{number:.{digits}f}".rstrip("0").rstrip("."))
+                    values.add(str(number))
     return values
 
 
