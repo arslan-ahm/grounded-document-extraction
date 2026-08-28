@@ -369,3 +369,28 @@ contain no initialisation noise at all — the noise scale they are divided by i
 the `full` arm's seed-to-seed spread, which asks whether the switch's effect is
 larger than the variability of the pipeline it sits inside. **Training-time**
 switches retrain, so their deltas carry run-to-run noise directly.
+
+### 7.1 The verification loop, isolated
+
+`span_only` is the same weights and the same decoded candidates with the loop
+switched off, so comparing against it attributes the loop exactly:
+
+<!-- table:verdicts_vs_span_only -->
+<!-- /table -->
+
+Read down the `verdict` column, not the `delta` column.
+
+* **Grounding: robust.** +0.026098 exact-span accuracy at 4.207149x noise, and
+  +0.023117 box IoU at 3.287440x. The loop reliably moves the *location* the value
+  was read from onto the right span.
+* **Coverage: a real cost, and it survives.** −0.044375 at 2.274987x. This is not
+  a rounding effect; the loop declines to answer.
+* **Accuracy: inside noise.** +0.010208 canonical at 0.734005x, +0.006979 strict
+  at 0.515812x. **The verification loop does not demonstrably improve accuracy at
+  this scale.** It improves *precision* (0.987703 against 0.940655 on seed 0) and
+  correct abstention (0.971338 against 0.789809), and it pays for both in
+  coverage; the net effect on accuracy over all pairs is not distinguishable from
+  reseeding.
+* `span_verify_norm`'s +0.072292 strict at 5.342889x is robust, but that is the
+  date normaliser, not the loop — the two arms share a verification configuration
+  and differ only in the post-processor.
