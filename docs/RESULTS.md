@@ -518,3 +518,48 @@ a regression test.
   That is a measurement bug, not just a slow one: it would have made the selection
   head look slower than the generative head and inverted the efficiency claim.
 * **Page-crossing spans**, as above.
+
+## 10. Limitations, and what would change them
+
+**The data is synthetic, and that is a load-bearing limitation.** It is also the
+reason the grounding oracle exists at all: no annotated real dataset records the
+token span each value was read from, so on FUNSD, CORD or SROIE "did the model
+look in the right place" is only answerable by string matching, which scores a
+model that reads the right value from the wrong place as correct. The trade is
+deliberate and it cuts both ways. What would change it: a real dataset with
+span-level provenance annotation, or a human study on a sample of real invoices.
+
+**Reading order here is the order the generator wrote in.** Real OCR order is
+noisier, and the 2-D positional encodings exist partly to survive that — but this
+benchmark never tests it, because its token order is always correct. A shuffled
+reading-order condition would be a cheap and informative addition and is not here.
+
+**No recognition errors.** Real scans produce `l` for `1` and drop characters.
+Every token in this benchmark is spelled correctly, which flatters *every* arm and
+flatters selection most: a selection head cannot repair a misread token, while a
+generative head in principle can. This is the most likely place where the ranking
+reported here would change on real data.
+
+**One architecture, one scale, three seeds.** A 64-wide 2-layer encoder trained
+for 6 epochs on 1200 documents. Nothing here says how the comparison behaves at a
+scale where the generative head can spell.
+
+**Greedy decoding for both heads, no beam.** A beam would improve the generative
+baseline's strings and would give it the ranked candidate set the verification
+loop needs to *re-select* rather than only abstain. That is the most obvious way
+to strengthen the baseline and it was not done, for compute reasons.
+
+**The LLM arm is a deterministic offline stub.** Its accuracy numbers are the
+stub's, not any language model's, and nothing in this file claims otherwise. Its
+token counts are whitespace-based and therefore a lower bound. What would change
+it: running the same `LLMClient` against a real provider, which the code supports
+and this study did not do.
+
+**The `n=4` calibration row.** `generative_verify`'s calibration statistics are
+computed over four emitted values on seed 0. They are kept for completeness and
+are meaningless; they should not be quoted.
+
+**Statistical unit.** The paired tests condition on one trained model per arm and
+are statements about weights. The seed study is the method-level claim, and with
+three seeds its noise scale is itself estimated from two degrees of freedom. Every
+verdict in this file should be read with that in mind.
