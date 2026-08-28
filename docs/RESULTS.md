@@ -369,6 +369,52 @@ the `full` arm's seed-to-seed spread, which asks whether the switch's effect is
 larger than the variability of the pipeline it sits inside. **Training-time**
 switches retrain, so their deltas carry run-to-run noise directly.
 
+**Read the grounding column first.** Every switch shows up there, robustly, and
+almost nothing shows up in accuracy:
+
+| switch | grounding delta | ratio | verdict | strict-accuracy ratio |
+|---|---|---|---|---|
+| verification off | -0.026098 | 11.949206 | robust | 0.548481 (inside noise) |
+| type check off | -0.021445 | 9.818455 | robust | 1.105148 (suggestive) |
+| abstention off | -0.010054 | 4.603053 | robust | 0.237402 (inside noise) |
+| arithmetic check off | -0.008675 | 3.972056 | robust | 0.638530 (inside noise) |
+| 2-D position off | -0.020319 | 9.303289 | robust | 1.678187 (suggestive) |
+| spatial bias off | -0.005966 | 2.731737 | survives | 3.438237 (robust) |
+
+That is the honest shape of this result. **The mechanisms this repository adds
+are grounding mechanisms.** They move the extractor onto the right span, reliably
+and well outside noise. What they do to end-to-end accuracy is mostly not
+measurable at this scale, and in one case points the wrong way: turning the
+arithmetic check *off* raises canonical accuracy by 0.007812 (0.561739x, inside
+noise) while costing 0.008675 grounding exactness. The check refuses answers that
+were often right.
+
+Three switches are worth calling out individually.
+
+**The spatial attention bias is the one mechanism that buys accuracy.** Turning it
+off costs 0.043750 strict accuracy at 3.438237x noise and 0.045000 canonical at
+3.235615x -- both robust -- from a table of 332 parameters. The absolute 2-D
+position encoding, which is far larger, costs only 0.021354 strict at 1.678187x,
+merely suggestive. The *relational* signal is what matters, which is what
+`docs/METHOD.md` section 3.2 argued it would be.
+
+**The confidence threshold is a bad idea and the table says so.** Setting
+`verify.min_confidence=0.5` costs 0.028958 canonical accuracy at 2.082178x
+(survives) and 0.027188 coverage, and buys 0.001852 grounding at 0.847745x --
+inside noise. It is shipped as a switch and left at 0.0.
+
+**Abstention is worth more than it costs.** Turning it off raises coverage by
+0.044375 (2.274987x, survives) and changes strict accuracy by -0.003021
+(0.237402x, inside noise) while costing 0.010054 grounding exactness at 4.603053x.
+Emitting a value that failed its checks does not make the arm more accurate; it
+makes it less grounded.
+
+**Hallucination rate is 0.000000 under every switch**, which is why those rows
+read `unknown`: with no variance across seeds there is no noise scale to divide
+by. That is the correct output for a quantity that is constant by construction,
+and it is worth seeing: no inference-time switch -- not even turning verification
+off entirely -- can make a selection head emit a string absent from the document.
+
 ### 7.1 The verification loop, isolated
 
 `span_only` is the same weights and the same decoded candidates with the loop
