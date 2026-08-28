@@ -159,9 +159,52 @@ of the identical configuration gives the run-to-run scale of a difference:
 <!-- table:verdicts -->
 <!-- /table -->
 
-### What survives, and what does not
+### What survives
 
-`PENDING_NUMBERS`
+* **The no-hallucination guarantee.** Zero ungrounded values from the span arms
+  across 3 seeds and 9,600 pairs, and across eight seeds of an *untrained*
+  network. This is arithmetic about the output space, not a statistic:
+  `tests/test_invariant_no_hallucination.py` quantifies over *all* admissible
+  spans of many documents, not just the ones a model happened to pick, and
+  `results/tables/invariant.csv` reports the denominators.
+* **Selection beats the rule baseline**, robustly: +0.130208 canonical accuracy at
+  9.362311x noise, +0.129479 strict at 10.175543x, +0.119583 coverage at
+  6.130715x.
+* **Selection beats the generative reference approach** on every accuracy metric,
+  far outside noise — but see the caveat below about *how far*.
+* **The verification loop improves grounding**: +0.026098 exact-span accuracy at
+  4.207149x noise, +0.023117 box IoU at 3.287440x.
+* **Verification makes abstention work.** Correct abstention on genuinely-absent
+  fields rises from 0.789809 to 0.971338.
+* **The span head's confidence knows when it is wrong**: error-detection AUROC
+  0.905755, against 0.670352 for the rule baseline.
+* **Determinism.** Two invocations agree to 0.0 on every per-item score and every
+  emitted string.
+* **The efficiency measurements**, which are measurements rather than inferences.
+
+### What does not
+
+* **"Selection prevents hallucination" as a claim about *heads*.**
+  `generative_verify` reaches the same zero with the same checker, at 0.001250
+  coverage. The mechanism is the provenance *check*.
+* **The verification loop as an accuracy mechanism.** +0.010208 canonical accuracy
+  is 0.734005x the noise scale — **inside noise** — and it costs 0.044375
+  coverage at 2.274987x.
+* **Any accuracy on fields requiring normalisation.** 0.000000 strict, bounded by
+  construction, for every selection-based arm including the rule baseline.
+* **The *size* of the gap over the generative baseline.** At 0.047708 canonical
+  it is undertrained for exact-string reproduction at this capacity and budget;
+  the ranking is not in doubt, the magnitude is not a stable estimate.
+* **The learned head's grounding advantage over rules.** `span_only` versus
+  `heuristic` on exact-span grounding is 0.085287x noise — inside noise. Without
+  the verification loop, the neural head is not better at looking in the right
+  place than a geometric rule.
+* **Calibration of the verified arm.** `span_verify`'s ECE is 0.069292 against
+  `span_only`'s 0.024006: filtering by a check makes the arm more accurate and
+  *less* calibrated.
+* **Anything about real documents.** This is a synthetic benchmark. It validates a
+  mechanism and says nothing about how these methods rank on real scanned invoices
+  with real OCR errors.
 
 Retractions and negative results in full:
 **[docs/RESULTS.md §9](docs/RESULTS.md#9-retractions-and-negative-results)**.
