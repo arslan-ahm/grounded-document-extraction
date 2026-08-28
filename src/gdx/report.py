@@ -199,6 +199,15 @@ def table_baseline_cost() -> str:
     return to_markdown(_read("baseline_cost"), ["arm", "metric", "value", "n_docs", "note"])
 
 
+def table_generative_budget() -> str:
+    """The reference approach at the shared budget and at a longer schedule."""
+    return to_markdown(
+        _read("generative_budget"),
+        ["arm", "epochs", "strict_accuracy", "canonical_accuracy", "coverage",
+         "hallucination_rate", "final_val_loss", "n_records"],
+    )
+
+
 def table_determinism() -> str:
     return to_markdown(_read("determinism"), ["quantity", "n", "max_abs_difference", "identical"])
 
@@ -224,6 +233,7 @@ ALL: dict[str, Callable[[], str]] = {
     "efficiency": table_efficiency,
     "decode_scaling": table_decode_scaling,
     "baseline_cost": table_baseline_cost,
+    "generative_budget": table_generative_budget,
     "determinism": table_determinism,
     "heuristic_sweep": table_heuristic_sweep,
 }

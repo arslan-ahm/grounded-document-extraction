@@ -237,5 +237,122 @@ def write_all(seeds: list[int], tables_dir: Path = TABLES) -> dict[str, Path]:
     dump("seed_runs_family", runs[["arm", "seed", "family", *[
         m for m in METRIC_FAMILY if m in runs.columns
     ], "hallucination_rate"]])
+    budget = generative_budget_table()
+    if not budget.empty:
+        dump("generative_budget", budget)
     LOG.info("reference arm for verdicts: %s; primary seed: %d", REFERENCE_ARM, primary)
     return written
+
+
+def heuristic_sweep_table(cfg, seed: int = 0, limit: int = 150) -> pd.DataFrame:  # noqa: ANN001
+    """Re-run the rule baseline's configuration sweep and record every variant.
+
+    The sweep is what makes the rule baseline a fair competitor rather than a
+    strawman, so its full result is committed rather than only the winner. Scored
+    on **validation**, which is where the winner is chosen; the test column would
+    be a different question and is deliberately absent.
+
+    Args:
+        cfg: Configuration supplying the verification base and split sizes.
+        seed: Which seed's population to sweep on.
+        limit: Validation documents used, capped for cost and stated in the CSV.
+    """
+    from gdx.arms import ARM_BY_NAME, baseline_candidates
+    from gdx.baselines.heuristic import VARIANTS
+    from gdx.data.dataset import DocumentDataset
+    from gdx.pipelines.core import evaluate_arm, prepare
+
+    prepared = prepare(cfg, seed=seed)
+    subset = DocumentDataset(
+        prepared.splits.val.docs[:limit], prepared.vocab, cfg.model.dec_max_len
+    )
+    arm = ARM_BY_NAME["heuristic"]
+    rows: list[dict[str, Any]] = []
+    for variant in VARIANTS:
+        cands, _ = baseline_candidates("heuristic", subset, variant=variant)
+        result = evaluate_arm(arm, subset, cands, cfg)
+        rows.append(
+            {
+                "variant": variant.name,
+                "split": "validation",
+                "canonical_accuracy": result.summary["canonical_accuracy"],
+                "strict_accuracy": result.summary["strict_accuracy"],
+                "coverage": result.summary["coverage"],
+                "grounding_exact": result.summary["grounding_exact"],
+                "n_records": result.summary["n_records"],
+            }
+        )
+    frame = pd.DataFrame(rows).sort_values("canonical_accuracy", ascending=False)
+    return frame.reset_index(drop=True)
+
+
+def generative_budget_table(runs_dir: Path = RUNS, tables_dir: Path = TABLES) -> pd.DataFrame:
+    """Compare the generative arm at the shared budget against a longer schedule.
+
+    The equal-budget comparison is the one the project standard prescribes, and it
+    is what the headline tables report. But a character decoder has to learn to
+    *spell* before it can be right, and at six epochs its validation loss was still
+    falling -- so reporting only the equal-budget number would let a reader mistake
+    "undertrained at this budget" for "generation cannot do this". This table
+    reports both, from `results/runs/gdx_generative_long/`.
+
+    Returns an empty frame with its columns when the long run has not been done.
+    """
+    columns = [
+        "arm", "epochs", "strict_accuracy", "canonical_accuracy", "coverage",
+        "hallucination_rate", "final_val_loss", "train_seconds", "n_records",
+    ]
+    rows: list[dict[str, Any]] = []
+    short = tables_dir / "seed_runs.csv"
+    if short.exists():
+        frame = pd.read_csv(short)
+        base = frame[(frame["arm"] == "generative") & (frame["seed"] == 0)]
+        if not base.empty:
+            row = base.iloc[0]
+            rows.append(
+                {
+                    "arm": "generative (shared budget)",
+                    "epochs": 6,
+                    "strict_accuracy": row["strict_accuracy"],
+                    "canonical_accuracy": row["canonical_accuracy"],
+                    "coverage": row["coverage"],
+                    "hallucination_rate": row["hallucination_rate"],
+                    "final_val_loss": _final_val_loss(runs_dir / "seed0" / "generative"),
+                    "train_seconds": row.get("train_seconds", np.nan),
+                    "n_records": row["n_records"],
+                }
+            )
+    long_dir = runs_dir / "gdx_generative_long"
+    summary = long_dir / "summary.csv"
+    if summary.exists():
+        frame = pd.read_csv(summary)
+        for _, row in frame.iterrows():
+            rows.append(
+                {
+                    "arm": f"{row['arm']} (long schedule)",
+                    "epochs": _epochs_of(long_dir),
+                    "strict_accuracy": row["strict_accuracy"],
+                    "canonical_accuracy": row["canonical_accuracy"],
+                    "coverage": row["coverage"],
+                    "hallucination_rate": row["hallucination_rate"],
+                    "final_val_loss": _final_val_loss(long_dir),
+                    "train_seconds": row.get("train_seconds", np.nan),
+                    "n_records": row["n_records"],
+                }
+            )
+    return pd.DataFrame(rows, columns=columns)
+
+
+def _final_val_loss(run_dir: Path) -> float:
+    """Last validation loss in a run's ``history.jsonl``, or ``NaN``."""
+    from gdx.utils.logging import JsonlLogger
+
+    records = JsonlLogger.read(run_dir / "history.jsonl")
+    return float(records[-1]["val_loss"]) if records else float("nan")
+
+
+def _epochs_of(run_dir: Path) -> float:
+    from gdx.utils.logging import JsonlLogger
+
+    records = JsonlLogger.read(run_dir / "history.jsonl")
+    return float(len(records)) if records else float("nan")
