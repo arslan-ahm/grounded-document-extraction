@@ -188,3 +188,139 @@ stronger competitor:
   ratio of 0.085287, **inside noise**. The learned head is not better at *looking
   in the right place* than the rule baseline; the verification loop is.
 * `llm_stub` versus `heuristic` on strict accuracy: 0.467572x, **inside noise**.
+
+## 3. The hallucination result, stated precisely
+
+Per-seed hallucination rate — the fraction of *emitted* values that occur nowhere
+in the document, denominator being emissions rather than pairs, so an arm that
+abstains everywhere earns nothing:
+
+| arm | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|
+| `generative` | 0.998597 | 0.999285 | 0.997894 |
+| `span_only`, `span_verify`, `span_verify_norm` | 0.0 | 0.0 | 0.0 |
+| `heuristic`, `llm_stub`, `generative_verify` | 0.0 | 0.0 | 0.0 |
+
+Two of those zeros mean different things, and conflating them would be the single
+easiest mistake to make here.
+
+**Structural zeros.** `heuristic`, `span_only`, `span_verify` and
+`span_verify_norm` *select*. Whatever they emit is a rendering of a token span,
+so the string is in the document by construction. `span_only` reaches zero with
+the verification loop **switched off**, which is the point: nothing is checking
+it, and it still cannot fabricate.
+
+**A checked zero.** `generative_verify` reaches zero by *refusing*. Its coverage
+is 0.001250 against `generative`'s 0.890938 — it emits 4 values on seed 0 where
+the unchecked arm emits 2851, and it spends 7.0717 verification iterations per
+document doing so. The provenance check works perfectly on generated strings; it
+just has almost nothing to accept.
+
+**So the claim this repository can support is narrower than "selection prevents
+hallucination".** The provenance *check* is what removes ungrounded values, from
+either head. Selection's contribution is that it passes the check for free — at
+0.877188 coverage (3-seed mean) rather than 0.001250 — and that it needs no
+checker at all to be safe. That distinction only became visible because the arm
+capable of refuting the broad claim was built and reported.
+
+### 3.1 The guarantee, counted
+
+<!-- table:invariant -->
+<!-- /table -->
+
+The table quantifies over three independent denominators: every admissible span
+of every document (a statement about the output *space*, not about any model),
+the emissions of untrained networks across eight seeds (so the property cannot be
+an artefact of training), and the emissions of trained checkpoints
+(what a deployment would see). Verification is **disabled** for the model rows on
+purpose — with the checker on, a zero would be unremarkable.
+
+`tests/test_invariant_no_hallucination.py` asserts the same property as a test,
+including a deliberately-injected absent string to prove the detector fires. A
+denominator with no positives anywhere would mean the detector was broken rather
+than that nothing hallucinates, so the generative control has to produce a
+non-zero count, and it does.
+
+## 4. The measured cost of the ideology
+
+<!-- table:normalisation_cost -->
+<!-- /table -->
+
+With probability 0.30 the generator writes a date in a form that is not the
+target: `03/01/2024`, `Jan 3, 2024`, `3rd of Jan 2024` against a target of
+`2024-01-03`. No contiguous span of document tokens equals the target, so a
+selection-only extractor **cannot** be right there.
+
+On seed 0 that is 211 of the 2886 present fields, and the measured strict accuracy
+on them is:
+
+* `span_verify` — **0.000000**
+* `span_only` — **0.000000**
+* `heuristic` — **0.000000**
+
+Three independent selection-based implementations, all exactly zero. This is not
+a model failure; it is the ideology's cost, and it is why the number is stated
+here rather than avoided by evaluating only on verbatim fields, where the same
+arms score 0.941682, 0.955140 and 0.794766.
+
+Two things soften it and one thing does not.
+
+**Canonical accuracy is fine.** `span_verify` reaches 0.995261 on those fields
+under a comparison that parses dates. If the downstream consumer can parse, the
+value was read correctly and the limitation is cosmetic.
+
+**A deterministic post-processor recovers it.** `span_verify_norm` scores
+0.995261 strict on the same fields — the highest of any arm, including
+`llm_stub`'s 0.729858. But it **weakens the guarantee**: after normalisation the
+emitted string is no longer a document substring, only a pure deterministic
+function of a grounded span. Provenance survives; property (P1) does not. That is
+stated wherever this arm appears.
+
+**What does not soften it:** if the target format is fixed and no post-processor
+exists for it, selection is simply unable to produce it, and no amount of training
+changes that. A generative head has no such bound — it merely failed to exploit it
+here (0.000000 strict on the same fields, because at this budget it cannot spell).
+
+## 5. Abstention and calibration
+
+<!-- table:abstention -->
+<!-- /table -->
+
+`absent_abstain_rate` is the one that matters: on the 314 fields the generator
+genuinely omitted, abstaining is the *correct* output. `span_verify` reaches
+0.971338 there against `span_only`'s 0.789809 — the verification loop's clearest
+single win. `heuristic` and `llm_stub` reach 1.000000, but by a weaker route:
+they emit nothing when no label is found, and a missing field usually has no
+label.
+
+The cost is on the other side. `present_emit_rate` — the fraction of genuinely
+present fields the arm answers — is 0.954955 for `span_verify` against 0.993070
+for `span_only`. The loop declines on about 4% of answerable fields to gain 18
+points of correct-abstention.
+
+The loop's own cost is small: 0.5608 iterations per document on average, with
+0.4650 re-selections (3-seed means). `generative_verify` burns 7.0717 iterations
+per document by comparison, because almost every candidate it is offered fails.
+
+<!-- table:calibration -->
+<!-- /table -->
+
+Measured on emitted values only: an abstention's confidence is a confidence in
+*absence*, and pooling the two would produce a reliability diagram about two
+different questions.
+
+* `span_only` is the best-calibrated arm — ECE 0.024006, ACE 0.025422, MCE
+  0.099913 — and `span_verify` is *worse* on ECE (0.069292) despite being more
+  accurate. Filtering by a check removes low-confidence *errors* and leaves the
+  surviving confidences systematically too low relative to a now-higher accuracy.
+  Verification improves accuracy and damages calibration, and both are reported.
+* Error-detection AUROC is 0.905755 for `span_verify` and 0.905418 for
+  `span_only` — the span head's confidence carries real information about which
+  answers are wrong. The rule baseline's 0.670352 is much weaker, as expected from
+  a rank heuristic dressed as a probability.
+* AURC is 0.001377 for `span_verify` against 0.020874 for `heuristic` and
+  0.998286 for `generative`.
+* **`generative_verify`'s calibration row is meaningless and is kept only for
+  completeness**: it is computed over 4 emitted values. `llm_stub`'s row is all
+  `n/a` because a text completion yields no confidence, and the arm reports `NaN`
+  rather than a fabricated 1.0.
