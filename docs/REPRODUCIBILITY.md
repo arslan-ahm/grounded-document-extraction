@@ -65,23 +65,30 @@ python scripts/run_ablations.py --seed 0
 python scripts/run_ablations.py --seed 1
 python scripts/run_ablations.py --seed 2 --summarise
 
-# 4. Every derived table, from the committed per-item CSVs (runs no model)
+# 4. The guarantee, counted exhaustively (writes results/tables/invariant.csv)
+python scripts/run_all.py --stage invariant
+
+# 5. The longer-schedule generative run behind docs/RESULTS.md section 9.3
+python scripts/train.py --config configs/generative.yaml   --set optim.epochs=12 --set run.name=gdx_generative_long
+
+# 6. Every derived table, from the committed per-item CSVs (runs no model)
 python scripts/analyse.py --seeds 0 1 2
 
-# 5. Figures, then inject the tables into the documentation
+# 7. Figures, then inject the tables into the documentation
 python scripts/make_figures.py
 python scripts/render_docs.py
+python scripts/render_docs.py --check   # what CI and the test suite run
 
-# 6. Notebooks
+# 8. Notebooks
 python scripts/build_notebooks.py --execute
 
-# 7. Tests
+# 9. Tests
 python -m pytest tests -q -m "not slow"
 python -m ruff check src scripts tests
 ```
 
-`scripts/run_all.py` does stages 1-5 in order and **skips any stage whose output
-already landed**, so an interrupted run is resumed rather than restarted. Pass
+`scripts/run_all.py` does the whole sequence in order and **skips any stage whose
+output already landed**, so an interrupted run is resumed rather than restarted. Pass
 `--force` to redo one.
 
 ## Determinism
