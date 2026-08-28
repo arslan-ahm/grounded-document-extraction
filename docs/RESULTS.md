@@ -445,9 +445,12 @@ Read down the `verdict` column, not the `delta` column.
 <!-- table:determinism -->
 <!-- /table -->
 
-Two separate invocations, per-item outputs diffed. The generator is a pure
-function of `(doc_id, seed, config)` and the evaluation of a fixed checkpoint is
-deterministic, so every difference is exactly zero. String-valued quantities
+Two separate invocations, per-item outputs diffed: 13812 generated box
+coordinates, 3453 token strings, and 3200 per-item confidences and emitted
+strings from `span_verify`. Every maximum absolute difference is exactly 0.0 and
+every comparison is identical. The generator is a pure function of
+`(doc_id, seed, config)` and the evaluation of a fixed checkpoint is
+deterministic. String-valued quantities
 report `0.0` when identical and `n/a` otherwise, because there is no metric on
 strings and a fabricated one would be worse than an honest gap.
 
