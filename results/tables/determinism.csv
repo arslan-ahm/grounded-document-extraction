@@ -1,0 +1,5 @@
+quantity,n,max_abs_difference,identical
+generator_token_boxes,13812,0.0,True
+generator_token_texts,3453,0.0,True
+span_verify_confidence,3200,0.0,True
+span_verify_emitted_values,3200,0.0,True
