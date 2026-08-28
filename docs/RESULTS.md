@@ -324,3 +324,48 @@ different questions.
   completeness**: it is computed over 4 emitted values. `llm_stub`'s row is all
   `n/a` because a text completion yields no confidence, and the arm reports `NaN`
   rather than a fabricated 1.0.
+
+## 6. The rule baseline, given a fair fight
+
+A weak rule baseline would make every neural comparison in this file worthless,
+so its geometry is swept and the winner chosen on **validation**, never on test:
+
+<!-- table:heuristic_sweep -->
+<!-- /table -->
+
+Six configurations over 150 validation documents (1200 pairs). `row_only` and
+`row_first` tie at 0.826667 canonical accuracy and the sweep takes `row_only`;
+they differ sharply elsewhere, with `row_only` at 0.976898 grounding exactness
+against `row_first`'s 0.915464 — the looser variant finds more values and puts
+more of them in the wrong place. The worst configurations (`row_first_wide`,
+`any_page`) reach 0.774167, so the sweep is worth 0.052500 canonical accuracy on
+its own.
+
+The baseline also gets: every label synonym the generator can emit, from the
+*same* shared table the generator draws from; multi-word label matching with
+longest-synonym-first, so "Total Due" wins over the "Total" inside it; and
+type-aware value matching, so it never proposes a word where an amount belongs.
+
+**And it inherits the grounding guarantee**, because it selects. Its
+hallucination rate is 0.0 for the same structural reason this repository's method
+has one. That is worth saying plainly: **the no-hallucination property belongs to
+selection, not to neural networks**, and the comparison this project cares about
+is selection versus generation rather than learned versus rule-based.
+
+One bug found here is worth recording. The synonym matcher originally broke out of
+its loop on the first *non*-matching synonym, so only the longest synonym was ever
+tried and the baseline located labels on about 20% of fields instead of 96%.
+Reporting that as the rule baseline's ceiling would have been a strawman, and the
+regression test `test_heuristic_finds_most_labels_on_real_documents` now pins it.
+
+## 7. Ablations
+
+<!-- table:ablations -->
+<!-- /table -->
+
+Two families, and keeping them apart matters. **Inference-time** switches reuse
+the *same trained weights* and the same decoded candidate sets, so their deltas
+contain no initialisation noise at all — the noise scale they are divided by is
+the `full` arm's seed-to-seed spread, which asks whether the switch's effect is
+larger than the variability of the pipeline it sits inside. **Training-time**
+switches retrain, so their deltas carry run-to-run noise directly.
