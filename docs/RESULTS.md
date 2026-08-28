@@ -393,3 +393,128 @@ Read down the `verdict` column, not the `delta` column.
 * `span_verify_norm`'s +0.072292 strict at 5.342889x is robust, but that is the
   date normaliser, not the loop — the two arms share a verification configuration
   and differ only in the post-processor.
+
+## 8. Determinism
+
+<!-- table:determinism -->
+<!-- /table -->
+
+Two separate invocations, per-item outputs diffed. The generator is a pure
+function of `(doc_id, seed, config)` and the evaluation of a fixed checkpoint is
+deterministic, so every difference is exactly zero. String-valued quantities
+report `0.0` when identical and `n/a` otherwise, because there is no metric on
+strings and a fabricated one would be worse than an honest gap.
+
+Two design choices make this hold, and both are the kind of thing that fails
+silently if forgotten. The hash-bucketed vocabulary uses `zlib.crc32` rather than
+Python's `hash`, which is salted per process and would otherwise make features
+depend on which process built them. And splits are disjoint document-id ranges
+rather than a shuffled pool, so nothing can leak between them because nothing is
+shared.
+
+## 9. Retractions and negative results
+
+### 9.1 Retracted: "selection prevents hallucination", as a claim about heads
+
+The claim this repository set out to make was that a selection head prevents
+hallucination where a generative head does not. The narrower claim is what the
+evidence supports: **the provenance check prevents hallucination, from either
+head.** `generative_verify` — the reference approach with the identical
+verification loop bolted on — reaches a hallucination rate of exactly 0.0.
+
+What separates the two is the *price*. `generative_verify` pays 0.001250 coverage
+against `span_verify`'s 0.877188, emitting 4 values on seed 0 where the span arm
+emits 2765, and it burns 7.1175 verification iterations per document doing it.
+Selection satisfies the check for free and needs no checker at all to be safe;
+that is a real and useful difference, and it is a smaller claim than the one this
+project started with.
+
+This was only visible because the arm capable of refuting the broad claim was
+built and reported. It would have been easy not to build it.
+
+### 9.2 Retracted: an earlier version of the guarantee was false
+
+Before the admissibility mask confined spans to a single page, a span could
+concatenate the end of one page with the start of the next. Its rendering is a
+sequence of document tokens but **not** a contiguous region: it has no union box,
+and the provenance predicate correctly refuses to find it.
+`test_untrained_span_model_never_hallucinates` failed on 3 of 8 seeds with an
+emitted `po_number` of `"of 2 Invoice No"` spliced across a page break.
+
+The general lesson is stated in `docs/METHOD.md` §2.1 and is worth repeating: **a
+guarantee about an output space is only as good as the agreement between the
+decoder's mask and the checker's definition.** The guarantee was not wrong in
+principle; the implementation of the output space was, and only an exhaustive test
+found it.
+
+### 9.3 Weakened: the accuracy gap over the generative baseline
+
+`generative` reaches 0.047708 canonical accuracy (3-seed mean, sd 0.004607). That
+is a real equal-budget result — same encoder, same data, same seed, same schedule,
+which is exactly the comparison the protocol prescribes — but it is *not* evidence
+that generation cannot do this task.
+
+<!-- table:generative_budget -->
+<!-- /table -->
+
+A character decoder has to learn to spell before it can be right: at roughly 1.0
+nats per character, per-character accuracy of around two thirds compounds to a
+few percent over a ten-character value, which is what is observed. The ranking is
+not in doubt at any budget this study can reach; **the magnitude of the gap is not
+a stable estimate** and should not be quoted as one.
+
+### 9.4 Negative: the verification loop does not improve accuracy
+
++0.010208 canonical accuracy at 0.734005x the run-to-run noise scale, and
++0.006979 strict at 0.515812x. Both **inside noise**. The loop demonstrably
+improves grounding (+0.026098 at 4.207149x) and correct abstention (0.789809 to
+0.971338) and demonstrably costs coverage (−0.044375 at 2.274987x), but its net
+effect on accuracy over all pairs is not distinguishable from reseeding.
+
+The headline framing "verification makes the method more accurate" is therefore
+not supported and is not used.
+
+### 9.5 Negative: zero accuracy where normalisation is required
+
+0.000000 strict accuracy on the 211 test fields whose written form is not the
+target — for this method, for its verification-free ablation, and for the rule
+baseline alike. This is a structural bound on selection, not a training failure,
+and no amount of scale changes it. `span_verify_norm` recovers it to 0.995261 by
+adding a deterministic parser, at the cost of the substring guarantee.
+
+### 9.6 Negative: verification damages calibration
+
+`span_verify` is more accurate than `span_only` and *worse* calibrated: ECE
+0.069292 against 0.024006, MCE 0.433785 against 0.099913. Filtering by a check
+removes low-confidence errors and leaves the surviving confidences systematically
+too low relative to a now-higher accuracy. Both directions are reported.
+
+### 9.7 Negative: the learned head's grounding advantage is inside noise
+
+`span_only` versus `heuristic` on exact-span grounding: −0.000529, a ratio of
+0.085287 — **inside noise**. Without the verification loop, a 108892-parameter
+layout transformer is not better at *looking in the right place* than a geometric
+rule with a synonym table. Every grounding advantage this repository reports comes
+from the loop, not from the head.
+
+### 9.8 Design errors found and fixed during the build
+
+Each of these produced a plausible wrong number before it was caught, and each has
+a regression test.
+
+* **A permissive amount parser** stripped every non-digit character, so
+  `"Net Amount EUR 30,614.90"` parsed as an amount. That turned label text into a
+  value and inflated the count of document spans that "contain" a value — which
+  weakens the hallucination metric *in this method's favour*.
+* **A permissive date parser** ignored unrecognised words, so
+  `"Issued 29th of March 2024"` parsed to the same date as
+  `"29th of March 2024"` and the label token counted as part of a correct
+  grounding.
+* **A label matcher that stopped at the first mismatch** meant only the longest
+  synonym was ever tried; the rule baseline found labels on about 20% of fields
+  instead of 96%, and reporting that would have been a strawman.
+* **Colliding magnitude buckets** made `0.05` and `5.00` the same input feature.
+* **A pure-Python decode loop** was about 30x slower than the vectorised version.
+  That is a measurement bug, not just a slow one: it would have made the selection
+  head look slower than the generative head and inverted the efficiency claim.
+* **Page-crossing spans**, as above.
