@@ -402,7 +402,7 @@ src/gdx/
     fields.py  grounding.py  calibration.py  stats.py
   engine/trainer.py   ONE loop for both heads
   pipelines/          core, experiments, analysis, ablations, efficiency,
-                      determinism
+                      invariant, determinism
   report.py  viz.py  cli.py  utils/
 
 scripts/            train, run_experiments, run_ablations, benchmark_efficiency,
