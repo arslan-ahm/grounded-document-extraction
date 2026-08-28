@@ -27,11 +27,13 @@ is not in the output space at all.
 
 > **Result, up front — including the parts that are not flattering.**
 >
-> **The guarantee holds, exactly.** Zero ungrounded values from the span arms
-> across 3 seeds and 9,600 (document, field) pairs, against a hallucination rate
-> of 0.998597 for the generative reference approach on the same encoder, same
-> data, same budget, same seed. It also holds for *untrained* networks, which is
-> the point: it does not depend on the model being any good.
+> **The guarantee holds, exactly, over 1075037 measured opportunities.**
+> 1064592 enumerated admissible spans, 1598 values emitted by *untrained* span
+> heads across 8 seeds, and 8847 emitted by the trained checkpoints across 3
+> seeds — **0 ungrounded, in all three populations, with the verification loop
+> switched off.** The generative reference approach on the same encoder, same
+> data, same budget and same seed hallucinates at 0.998597. The control fires as
+> it must: untrained generative heads score 1.000000.
 >
 > **But the checker, not the head, is what removes hallucinated values.** The same
 > provenance check applied to the generative arm (`generative_verify`) also
@@ -161,12 +163,12 @@ of the identical configuration gives the run-to-run scale of a difference:
 
 ### What survives
 
-* **The no-hallucination guarantee.** Zero ungrounded values from the span arms
-  across 3 seeds and 9,600 pairs, and across eight seeds of an *untrained*
-  network. This is arithmetic about the output space, not a statistic:
-  `tests/test_invariant_no_hallucination.py` quantifies over *all* admissible
-  spans of many documents, not just the ones a model happened to pick, and
-  `results/tables/invariant.csv` reports the denominators.
+* **The no-hallucination guarantee**, over 1075037 opportunities and 0 taken —
+  1064592 enumerated spans, 1598 untrained-model emissions, 8847 trained-model
+  emissions, all with verification off. This is arithmetic about the output
+  space, not a statistic: `results/tables/invariant.csv` carries the denominators
+  and `tests/test_invariant_no_hallucination.py` asserts the property over all
+  admissible spans rather than over the ones a model happened to pick.
 * **Selection beats the rule baseline**, robustly: +0.130208 canonical accuracy at
   9.362311x noise, +0.129479 strict at 10.175543x, +0.119583 coverage at
   6.130715x.
