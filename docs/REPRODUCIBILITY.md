@@ -96,6 +96,12 @@ output already landed**, so an interrupted run is resumed rather than restarted.
 Two separate invocations, per-item outputs diffed:
 
 <!-- table:determinism -->
+| quantity | n | max_abs_difference | identical |
+|---|---|---|---|
+| generator_token_boxes | 13812 | 0 | yes |
+| generator_token_texts | 3453 | 0 | yes |
+| span_verify_confidence | 3200 | 0 | yes |
+| span_verify_emitted_values | 3200 | 0 | yes |
 <!-- /table -->
 
 The generator is a pure function of `(doc_id, seed, config)`, and the evaluation

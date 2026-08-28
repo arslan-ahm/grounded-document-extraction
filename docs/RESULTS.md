@@ -48,6 +48,12 @@ ones a larger study could move, and §9 says which.
 ## 1. Efficiency
 
 <!-- table:efficiency -->
+| arm | batch_size | seq_len | params | mmacs | latency_ms | iqr_ms | latency_per_doc_ms | macs_per_ms | latency_reduction_vs_generative | params_reduction_vs_generative | macs_reduction_vs_generative |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| span_verify | 1 | 154 | 1.09e+05 | 17.3268 | 17.7259 | 4.7454 | 17.7259 | 0.9775 | 9.3063 | 1.8472 | 7.258 |
+| span_verify | 8 | 154 | 1.09e+05 | 96.1157 | 99.5228 | 10.0745 | 12.4403 | 0.9658 | 3.3315 | 1.8472 | 10.0251 |
+| generative | 1 | 154 | 2.01e+05 | 125.759 | 164.9634 | 12.2422 | 164.9634 | 0.7623 | 1 | 1 | 1 |
+| generative | 8 | 154 | 2.01e+05 | 963.5727 | 331.5582 | 24.3765 | 41.4448 | 2.9062 | 1 | 1 | 1 |
 <!-- /table -->
 
 Ten warm-up iterations, thirty timed repeats, median and IQR, 2 torch threads,
@@ -70,6 +76,20 @@ in the table.
 ### 1.1 The claim that actually separates the two approaches is asymptotic
 
 <!-- table:decode_scaling -->
+| head | dec_max_len | latency_ms | iqr_ms | fitted_exponent |
+|---|---|---|---|---|
+| span | 4 | 82.844 | 8.1828 | 0.0776 |
+| span | 8 | 80.0308 | 8.9176 | 0.0776 |
+| span | 12 | 117.5483 | 29.6286 | 0.0776 |
+| span | 16 | 82.6206 | 8.1945 | 0.0776 |
+| span | 20 | 91.5661 | 16.9817 | 0.0776 |
+| span | 24 | 96.3721 | 30.3007 | 0.0776 |
+| generative | 4 | 92.154 | 10.6011 | 0.7551 |
+| generative | 8 | 175.145 | 54.2506 | 0.7551 |
+| generative | 12 | 211.1591 | 45.6685 | 0.7551 |
+| generative | 16 | 259.2902 | 10.2136 | 0.7551 |
+| generative | 20 | 317.8147 | 12.0141 | 0.7551 |
+| generative | 24 | 377.5217 | 31.2828 | 0.7551 |
 <!-- /table -->
 
 A span head emits two indices: a fixed number of sequential steps, independent of
@@ -88,6 +108,11 @@ what is linear, and the raw latencies show it (92.154 ms at 4 characters,
 ### 1.2 The other cost axis is tokens, and it is accounting rather than latency
 
 <!-- table:baseline_cost -->
+| arm | metric | value | n_docs | note |
+|---|---|---|---|---|
+| heuristic | latency_per_doc_ms | 7.5227 | 40 | variant row_first, warmup 2 |
+| llm_stub | prompt_tokens_per_doc | 1119.4 | 40 | 8 calls/doc, whitespace tokens, lower bound |
+| span_verify | prompt_tokens_per_doc | 0 | 40 | no provider call; local model |
 <!-- /table -->
 
 An LLM extraction pipeline pays for the whole serialised document on every
@@ -99,6 +124,15 @@ protocol as the neural arms.
 ## 2. The seven-arm comparison
 
 <!-- table:method -->
+| arm | family | strict_accuracy | canonical_accuracy | coverage | hallucination_rate | grounding_exact | grounding_iou | f1 | absent_abstain_rate | n_records |
+|---|---|---|---|---|---|---|---|---|---|---|
+| heuristic | baseline | 0.7625 | 0.8269 | 0.755 | 0 | 0.9652 | 0.9671 | 0.8797 | 1 | 3200 |
+| llm_stub | baseline | 0.7566 | 0.7566 | 0.7459 | 0 | n/a | n/a | 0.7992 | 1 | 3200 |
+| generative | reference | 0.0494 | 0.0494 | 0.8909 | 0.9986 | n/a | n/a | 6.97e-04 | 0.4968 | 3200 |
+| generative_verify | baseline | 0.0988 | 0.0988 | 0.0013 | 0 | n/a | n/a | 0.0014 | 1 | 3200 |
+| span_only | ablation | 0.8759 | 0.9394 | 0.9163 | 0 | 0.9623 | 0.9651 | 0.9481 | 0.7898 | 3200 |
+| span_verify | ours | 0.8825 | **0.9487** | 0.8641 | 0 | 0.9909 | 0.9911 | 0.9666 | 0.9713 | 3200 |
+| span_verify_norm | ours | 0.9481 | **0.9487** | 0.8641 | 0 | 0.9909 | 0.9911 | 0.9666 | 0.9713 | 3200 |
 <!-- /table -->
 
 Seed 0. `heuristic` and both `span` arms select, so their hallucination rate is 0
@@ -126,6 +160,32 @@ doing what it is for.
 ### 2.1 Per field
 
 <!-- table:per_field -->
+| arm | field | n | n_present | strict_accuracy | canonical_accuracy | coverage | grounding_exact |
+|---|---|---|---|---|---|---|---|
+| generative | invoice_id | 400 | 400 | 0 | 0 | 1 | 0 |
+| generative | invoice_date | 400 | 400 | 0.005 | 0.005 | 1 | 0 |
+| generative | due_date | 400 | 346 | 0 | 0 | 1 | 0 |
+| generative | vendor_name | 400 | 400 | 0 | 0 | 1 | 0 |
+| generative | po_number | 400 | 227 | 0.3875 | 0.3875 | 0.135 | 0 |
+| generative | subtotal | 400 | 362 | 0 | 0 | 0.9975 | 0 |
+| generative | tax | 400 | 351 | 0.0025 | 0.0025 | 0.995 | 0 |
+| generative | total | 400 | 400 | 0 | 0 | 1 | 0 |
+| heuristic | invoice_id | 400 | 400 | 0.9775 | 0.9775 | 0.9775 | 0.9775 |
+| heuristic | invoice_date | 400 | 400 | 0.585 | 0.8525 | 0.9875 | 0.8525 |
+| heuristic | due_date | 400 | 346 | 0.735 | 0.96 | 0.825 | 0.9538 |
+| heuristic | vendor_name | 400 | 400 | 0 | 0 | 0.0425 | 0 |
+| heuristic | po_number | 400 | 227 | 0.99 | 0.99 | 0.5575 | 0.9824 |
+| heuristic | subtotal | 400 | 362 | 0.94 | 0.95 | 0.8625 | 0.9448 |
+| heuristic | tax | 400 | 351 | 0.9275 | 0.9375 | 0.8275 | 0.9288 |
+| heuristic | total | 400 | 400 | 0.945 | 0.9475 | 0.96 | 0.9475 |
+| span_verify | invoice_id | 400 | 400 | 0.9975 | 0.9975 | 1 | 0.9975 |
+| span_verify | invoice_date | 400 | 400 | 0.68 | 0.9775 | 0.995 | 0.9775 |
+| span_verify | due_date | 400 | 346 | 0.7375 | 0.965 | 0.88 | 0.9769 |
+| span_verify | vendor_name | 400 | 400 | 1 | 1 | 1 | 1 |
+| span_verify | po_number | 400 | 227 | 0.9875 | 0.9875 | 0.555 | 0.978 |
+| span_verify | subtotal | 400 | 362 | 0.895 | 0.895 | 0.825 | 0.8867 |
+| span_verify | tax | 400 | 351 | 0.895 | 0.8975 | 0.785 | 0.8889 |
+| span_verify | total | 400 | 400 | 0.8675 | 0.87 | 0.8725 | 0.87 |
 <!-- /table -->
 
 The fields where selection is near-perfect are the ones with an unambiguous
@@ -139,6 +199,32 @@ and abstention is correct there.
 ### 2.2 Is the difference significant?
 
 <!-- table:statistical_tests -->
+| name_a | name_b | metric | unit | mean_a | mean_b | difference | ci_lower | ci_upper | p_value | p_adjusted | effect_size | n | significant |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| heuristic | generative | hallucination_rate | set | 0 | 0.9986 | -0.9983 | -0.9996 | -0.9967 | n/a | n/a | n/a | 2000 | yes |
+| llm_stub | generative | hallucination_rate | set | 0 | 0.9986 | -0.9983 | -0.9996 | -0.9962 | n/a | n/a | n/a | 2000 | yes |
+| generative_verify | generative | hallucination_rate | set | 0 | 0.9986 | -1 | -1 | -1 | n/a | n/a | n/a | 2000 | yes |
+| span_only | generative | hallucination_rate | set | 0 | 0.9986 | -0.9986 | -0.9996 | -0.9972 | n/a | n/a | n/a | 2000 | yes |
+| span_verify | generative | hallucination_rate | set | 0 | 0.9986 | -0.9986 | -0.9996 | -0.9971 | n/a | n/a | n/a | 2000 | yes |
+| span_verify_norm | generative | hallucination_rate | set | 0 | 0.9986 | -0.9986 | -0.9996 | -0.9971 | n/a | n/a | n/a | 2000 | yes |
+| heuristic | generative | strict_accuracy | document | 0.7625 | 0.0494 | 0.7131 | 0.7003 | 0.7256 | 6.53e-69 | 7.83e-68 | 5.3296 | 400 | yes |
+| heuristic | generative | canonical_accuracy | document | 0.8269 | 0.0494 | 0.7775 | 0.765 | 0.7891 | 6.02e-70 | 1.02e-68 | 6.3516 | 400 | yes |
+| heuristic | generative | coverage | document | 0.755 | 0.8909 | -0.1359 | -0.1491 | -0.1231 | 4.69e-51 | 3.29e-50 | -1.0729 | 400 | yes |
+| llm_stub | generative | strict_accuracy | document | 0.7566 | 0.0494 | 0.7072 | 0.6953 | 0.7197 | 1.85e-68 | 1.67e-67 | 5.4116 | 400 | yes |
+| llm_stub | generative | canonical_accuracy | document | 0.7566 | 0.0494 | 0.7072 | 0.6953 | 0.7197 | 1.85e-68 | 1.67e-67 | 5.4116 | 400 | yes |
+| llm_stub | generative | coverage | document | 0.7459 | 0.8909 | -0.145 | -0.1622 | -0.1291 | 1.98e-40 | 1.19e-39 | -0.8661 | 400 | yes |
+| generative_verify | generative | strict_accuracy | document | 0.0988 | 0.0494 | 0.0494 | 0.0419 | 0.0575 | 3.81e-28 | 1.90e-27 | 0.6584 | 400 | yes |
+| generative_verify | generative | canonical_accuracy | document | 0.0988 | 0.0494 | 0.0494 | 0.0419 | 0.0575 | 3.81e-28 | 1.90e-27 | 0.6584 | 400 | yes |
+| generative_verify | generative | coverage | document | 0.0013 | 0.8909 | -0.8897 | -0.8944 | -0.885 | 2.08e-79 | 3.74e-78 | -18.1324 | 400 | yes |
+| span_only | generative | strict_accuracy | document | 0.8759 | 0.0494 | 0.8266 | 0.8147 | 0.8391 | 7.82e-69 | 8.61e-68 | 6.5801 | 400 | yes |
+| span_only | generative | canonical_accuracy | document | 0.9394 | 0.0494 | 0.89 | 0.8794 | 0.9006 | 1.43e-69 | 1.85e-68 | 8.2912 | 400 | yes |
+| span_only | generative | coverage | document | 0.9163 | 0.8909 | 0.0253 | 0.0163 | 0.0344 | 5.50e-08 | 1.65e-07 | 0.2828 | 400 | yes |
+| span_verify | generative | strict_accuracy | document | 0.8825 | 0.0494 | 0.8331 | 0.8197 | 0.8462 | 1.07e-68 | 1.07e-67 | 6.0571 | 400 | yes |
+| span_verify | generative | canonical_accuracy | document | 0.9487 | 0.0494 | 0.8994 | 0.8878 | 0.91 | 8.70e-70 | 1.39e-68 | 7.7176 | 400 | yes |
+| span_verify | generative | coverage | document | 0.8641 | 0.8909 | -0.0269 | -0.0422 | -0.0128 | 0.0013 | 0.0025 | -0.1816 | 400 | yes |
+| span_verify_norm | generative | strict_accuracy | document | 0.9481 | 0.0494 | 0.8988 | 0.8869 | 0.9097 | 9.21e-70 | 1.39e-68 | 7.7037 | 400 | yes |
+| span_verify_norm | generative | canonical_accuracy | document | 0.9487 | 0.0494 | 0.8994 | 0.8878 | 0.91 | 8.70e-70 | 1.39e-68 | 7.7176 | 400 | yes |
+| span_verify_norm | generative | coverage | document | 0.8641 | 0.8909 | -0.0269 | -0.0422 | -0.0128 | 0.0013 | 0.0025 | -0.1816 | 400 | yes |
 <!-- /table -->
 
 Paired tests on seed 0, Holm-corrected across the metric family. The unit column
@@ -155,6 +241,43 @@ disagree the seed study wins.
 ### 2.3 And is it bigger than the noise?
 
 <!-- table:seed_variance -->
+| arm | metric | n_seeds | mean | sd | noise_scale | min | max |
+|---|---|---|---|---|---|---|---|
+| generative | canonical_accuracy | 3 | 0.0477 | 0.0046 | 0.0065 | 0.0425 | 0.0512 |
+| generative_verify | canonical_accuracy | 3 | 0.0923 | 0.0056 | 0.008 | 0.0884 | 0.0988 |
+| heuristic | canonical_accuracy | 3 | 0.8244 | 0.0022 | 0.0031 | 0.8228 | 0.8269 |
+| llm_stub | canonical_accuracy | 3 | 0.7574 | 0.0012 | 0.0017 | 0.7566 | 0.7588 |
+| span_only | canonical_accuracy | 3 | 0.9444 | 0.0087 | 0.0122 | 0.9394 | 0.9544 |
+| span_verify | canonical_accuracy | 3 | 0.9546 | 0.0098 | 0.0139 | 0.9487 | 0.9659 |
+| span_verify_norm | canonical_accuracy | 3 | 0.9546 | 0.0098 | 0.0139 | 0.9487 | 0.9659 |
+| generative | coverage | 3 | 0.8852 | 0.0094 | 0.0133 | 0.8744 | 0.8909 |
+| generative_verify | coverage | 3 | 0.0013 | 6.25e-04 | 8.84e-04 | 6.25e-04 | 0.0019 |
+| heuristic | coverage | 3 | 0.7576 | 0.0035 | 0.0049 | 0.755 | 0.7616 |
+| llm_stub | coverage | 3 | 0.75 | 0.0084 | 0.0119 | 0.7444 | 0.7597 |
+| span_only | coverage | 3 | 0.9216 | 0.0049 | 0.0069 | 0.9163 | 0.9259 |
+| span_verify | coverage | 3 | 0.8772 | 0.0138 | 0.0195 | 0.8641 | 0.8916 |
+| span_verify_norm | coverage | 3 | 0.8772 | 0.0138 | 0.0195 | 0.8641 | 0.8916 |
+| generative | grounding_exact | 0 | n/a | n/a | n/a | n/a | n/a |
+| generative_verify | grounding_exact | 0 | n/a | n/a | n/a | n/a | n/a |
+| heuristic | grounding_exact | 3 | 0.9671 | 0.0031 | 0.0043 | 0.9652 | 0.9707 |
+| llm_stub | grounding_exact | 0 | n/a | n/a | n/a | n/a | n/a |
+| span_only | grounding_exact | 3 | 0.9666 | 0.0044 | 0.0062 | 0.9623 | 0.9711 |
+| span_verify | grounding_exact | 3 | 0.9927 | 0.0015 | 0.0022 | 0.9909 | 0.9937 |
+| span_verify_norm | grounding_exact | 3 | 0.9927 | 0.0015 | 0.0022 | 0.9909 | 0.9937 |
+| generative | grounding_iou | 0 | n/a | n/a | n/a | n/a | n/a |
+| generative_verify | grounding_iou | 0 | n/a | n/a | n/a | n/a | n/a |
+| heuristic | grounding_iou | 3 | 0.969 | 0.0028 | 0.004 | 0.9671 | 0.9723 |
+| llm_stub | grounding_iou | 0 | n/a | n/a | n/a | n/a | n/a |
+| span_only | grounding_iou | 3 | 0.9697 | 0.005 | 0.007 | 0.9651 | 0.975 |
+| span_verify | grounding_iou | 3 | 0.9928 | 0.0015 | 0.0022 | 0.9911 | 0.9938 |
+| span_verify_norm | grounding_iou | 3 | 0.9928 | 0.0015 | 0.0022 | 0.9911 | 0.9938 |
+| generative | strict_accuracy | 3 | 0.0477 | 0.0046 | 0.0065 | 0.0425 | 0.0512 |
+| generative_verify | strict_accuracy | 3 | 0.0923 | 0.0056 | 0.008 | 0.0884 | 0.0988 |
+| heuristic | strict_accuracy | 3 | 0.7593 | 0.0028 | 0.004 | 0.7572 | 0.7625 |
+| llm_stub | strict_accuracy | 3 | 0.7574 | 0.0012 | 0.0017 | 0.7566 | 0.7588 |
+| span_only | strict_accuracy | 3 | 0.8818 | 0.0096 | 0.0135 | 0.8759 | 0.8928 |
+| span_verify | strict_accuracy | 3 | 0.8887 | 0.009 | 0.0127 | 0.8825 | 0.8991 |
+| span_verify_norm | strict_accuracy | 3 | 0.9541 | 0.0095 | 0.0134 | 0.9481 | 0.965 |
 <!-- /table -->
 
 Three seeds of the identical configuration, varying both the initialisation and
@@ -163,6 +286,38 @@ dataset across seeds would report initialisation noise only and understate the
 run-to-run scale.
 
 <!-- table:verdicts -->
+| arm | metric | value | reference_value | delta | noise_scale | ratio_to_noise | verdict |
+|---|---|---|---|---|---|---|---|
+| generative_verify | strict_accuracy | 0.0923 | 0.0477 | 0.0446 | 0.008 | 5.6016 | robust |
+| heuristic | strict_accuracy | 0.7593 | 0.0477 | 0.7116 | 0.0065 | 109.2156 | robust |
+| llm_stub | strict_accuracy | 0.7574 | 0.0477 | 0.7097 | 0.0065 | 108.9279 | robust |
+| span_only | strict_accuracy | 0.8818 | 0.0477 | 0.8341 | 0.0135 | 61.6434 | robust |
+| span_verify | strict_accuracy | 0.8887 | 0.0477 | 0.841 | 0.0127 | 66.096 | robust |
+| span_verify_norm | strict_accuracy | 0.9541 | 0.0477 | 0.9064 | 0.0134 | 67.5777 | robust |
+| generative_verify | canonical_accuracy | 0.0923 | 0.0477 | 0.0446 | 0.008 | 5.6016 | robust |
+| heuristic | canonical_accuracy | 0.8244 | 0.0477 | 0.7767 | 0.0065 | 119.2083 | robust |
+| llm_stub | canonical_accuracy | 0.7574 | 0.0477 | 0.7097 | 0.0065 | 108.9279 | robust |
+| span_only | canonical_accuracy | 0.9444 | 0.0477 | 0.8967 | 0.0122 | 73.2125 | robust |
+| span_verify | canonical_accuracy | 0.9546 | 0.0477 | 0.9069 | 0.0139 | 65.2066 | robust |
+| span_verify_norm | canonical_accuracy | 0.9546 | 0.0477 | 0.9069 | 0.0139 | 65.2066 | robust |
+| generative_verify | coverage | 0.0013 | 0.8852 | -0.884 | 0.0133 | 66.5861 | robust |
+| heuristic | coverage | 0.7576 | 0.8852 | -0.1276 | 0.0133 | 9.6121 | robust |
+| llm_stub | coverage | 0.75 | 0.8852 | -0.1352 | 0.0133 | 10.1849 | robust |
+| span_only | coverage | 0.9216 | 0.8852 | 0.0364 | 0.0133 | 2.7385 | survives |
+| span_verify | coverage | 0.8772 | 0.8852 | -0.008 | 0.0195 | 0.4112 | inside noise |
+| span_verify_norm | coverage | 0.8772 | 0.8852 | -0.008 | 0.0195 | 0.4112 | inside noise |
+| generative_verify | grounding_exact | n/a | n/a | n/a | n/a | n/a | unknown |
+| heuristic | grounding_exact | 0.9671 | n/a | n/a | 0.0043 | n/a | unknown |
+| llm_stub | grounding_exact | n/a | n/a | n/a | n/a | n/a | unknown |
+| span_only | grounding_exact | 0.9666 | n/a | n/a | 0.0062 | n/a | unknown |
+| span_verify | grounding_exact | 0.9927 | n/a | n/a | 0.0022 | n/a | unknown |
+| span_verify_norm | grounding_exact | 0.9927 | n/a | n/a | 0.0022 | n/a | unknown |
+| generative_verify | grounding_iou | n/a | n/a | n/a | n/a | n/a | unknown |
+| heuristic | grounding_iou | 0.969 | n/a | n/a | 0.004 | n/a | unknown |
+| llm_stub | grounding_iou | n/a | n/a | n/a | n/a | n/a | unknown |
+| span_only | grounding_iou | 0.9697 | n/a | n/a | 0.007 | n/a | unknown |
+| span_verify | grounding_iou | 0.9928 | n/a | n/a | 0.0022 | n/a | unknown |
+| span_verify_norm | grounding_iou | 0.9928 | n/a | n/a | 0.0022 | n/a | unknown |
 <!-- /table -->
 
 Against the generative reference approach, every arm's accuracy gap is far outside
@@ -176,6 +331,38 @@ The more informative comparison is against the rule baseline, which is the
 stronger competitor:
 
 <!-- table:verdicts_vs_heuristic -->
+| arm | metric | value | reference_value | delta | noise_scale | ratio_to_noise | verdict |
+|---|---|---|---|---|---|---|---|
+| generative | strict_accuracy | 0.0477 | 0.7593 | -0.7116 | 0.0065 | 109.2156 | robust |
+| generative_verify | strict_accuracy | 0.0923 | 0.7593 | -0.667 | 0.008 | 83.8014 | robust |
+| llm_stub | strict_accuracy | 0.7574 | 0.7593 | -0.0019 | 0.004 | 0.4676 | inside noise |
+| span_only | strict_accuracy | 0.8818 | 0.7593 | 0.1225 | 0.0135 | 9.0537 | robust |
+| span_verify | strict_accuracy | 0.8887 | 0.7593 | 0.1295 | 0.0127 | 10.1755 | robust |
+| span_verify_norm | strict_accuracy | 0.9541 | 0.7593 | 0.1948 | 0.0134 | 14.5236 | robust |
+| generative | canonical_accuracy | 0.0477 | 0.8244 | -0.7767 | 0.0065 | 119.2083 | robust |
+| generative_verify | canonical_accuracy | 0.0923 | 0.8244 | -0.7321 | 0.008 | 91.9813 | robust |
+| llm_stub | canonical_accuracy | 0.7574 | 0.8244 | -0.067 | 0.0031 | 21.6509 | robust |
+| span_only | canonical_accuracy | 0.9444 | 0.8244 | 0.12 | 0.0122 | 9.798 | robust |
+| span_verify | canonical_accuracy | 0.9546 | 0.8244 | 0.1302 | 0.0139 | 9.3623 | robust |
+| span_verify_norm | canonical_accuracy | 0.9546 | 0.8244 | 0.1302 | 0.0139 | 9.3623 | robust |
+| generative | coverage | 0.8852 | 0.7576 | 0.1276 | 0.0133 | 9.6121 | robust |
+| generative_verify | coverage | 0.0013 | 0.7576 | -0.7564 | 0.0049 | 153.4852 | robust |
+| llm_stub | coverage | 0.75 | 0.7576 | -0.0076 | 0.0119 | 0.6381 | inside noise |
+| span_only | coverage | 0.9216 | 0.7576 | 0.164 | 0.0069 | 23.6059 | robust |
+| span_verify | coverage | 0.8772 | 0.7576 | 0.1196 | 0.0195 | 6.1307 | robust |
+| span_verify_norm | coverage | 0.8772 | 0.7576 | 0.1196 | 0.0195 | 6.1307 | robust |
+| generative | grounding_exact | n/a | 0.9671 | n/a | 0.0043 | n/a | unknown |
+| generative_verify | grounding_exact | n/a | 0.9671 | n/a | 0.0043 | n/a | unknown |
+| llm_stub | grounding_exact | n/a | 0.9671 | n/a | 0.0043 | n/a | unknown |
+| span_only | grounding_exact | 0.9666 | 0.9671 | -5.29e-04 | 0.0062 | 0.0853 | inside noise |
+| span_verify | grounding_exact | 0.9927 | 0.9671 | 0.0256 | 0.0043 | 5.9244 | robust |
+| span_verify_norm | grounding_exact | 0.9927 | 0.9671 | 0.0256 | 0.0043 | 5.9244 | robust |
+| generative | grounding_iou | n/a | 0.969 | n/a | 0.004 | n/a | unknown |
+| generative_verify | grounding_iou | n/a | 0.969 | n/a | 0.004 | n/a | unknown |
+| llm_stub | grounding_iou | n/a | 0.969 | n/a | 0.004 | n/a | unknown |
+| span_only | grounding_iou | 0.9697 | 0.969 | 6.84e-04 | 0.007 | 0.0972 | inside noise |
+| span_verify | grounding_iou | 0.9928 | 0.969 | 0.0238 | 0.004 | 5.9089 | robust |
+| span_verify_norm | grounding_iou | 0.9928 | 0.969 | 0.0238 | 0.004 | 5.9089 | robust |
 <!-- /table -->
 
 * `span_verify` over `heuristic`: **+0.130208 canonical at 9.362311x noise**,
@@ -226,6 +413,13 @@ capable of refuting the broad claim was built and reported.
 ### 3.1 The guarantee, counted
 
 <!-- table:invariant -->
+| source | population | n_seeds | n_documents | n_opportunities | n_ungrounded | rate |
+|---|---|---|---|---|---|---|
+| enumerated spans (no model) | all admissible spans, all fields | 8 | 200 | 1.06e+06 | 0 | 0 |
+| untrained span head | 25 documents/seed, verification off | 8 | 200 | 1598 | 0 | 0 |
+| untrained gen. head | 25 documents/seed, verification off | 8 | 200 | 1567 | 1567 | 1 |
+| trained span head | committed test-split per-item CSVs, verification off | 3 | 1200 | 8847 | 0 | 0 |
+| trained gen. head | committed test-split per-item CSVs, verification off | 3 | 1200 | 8498 | 8486 | 0.998588 |
 <!-- /table -->
 
 The table quantifies over three independent denominators: every admissible span
@@ -243,6 +437,22 @@ to prove no malformed selection escapes as a value.
 ## 4. The measured cost of the ideology
 
 <!-- table:normalisation_cost -->
+| arm | subset | n | strict_accuracy | canonical_accuracy | coverage |
+|---|---|---|---|---|---|
+| generative | needs_normalisation | 211 | 0 | 0 | 1 |
+| generative_verify | needs_normalisation | 211 | 0 | 0 | 0.0047 |
+| heuristic | needs_normalisation | 211 | 0 | 0.9336 | 0.981 |
+| llm_stub | needs_normalisation | 211 | 0.7299 | 0.7299 | 0.7962 |
+| span_only | needs_normalisation | 211 | 0 | 0.9573 | 1 |
+| span_verify | needs_normalisation | 211 | 0 | 0.9953 | 1 |
+| span_verify_norm | needs_normalisation | 211 | 0.9953 | 0.9953 | 1 |
+| generative | verbatim | 2675 | 7.48e-04 | 7.48e-04 | 0.9279 |
+| generative_verify | verbatim | 2675 | 7.48e-04 | 7.48e-04 | 0.0011 |
+| heuristic | verbatim | 2675 | 0.7948 | 0.7981 | 0.8258 |
+| llm_stub | verbatim | 2675 | 0.7301 | 0.7301 | 0.8295 |
+| span_only | verbatim | 2675 | 0.9551 | 0.9555 | 0.9925 |
+| span_verify | verbatim | 2675 | 0.9417 | 0.9424 | 0.9514 |
+| span_verify_norm | verbatim | 2675 | 0.9417 | 0.9424 | 0.9514 |
 <!-- /table -->
 
 With probability 0.30 the generator writes a date in a form that is not the
@@ -283,6 +493,15 @@ here (0.000000 strict on the same fields, because at this budget it cannot spell
 ## 5. Abstention and calibration
 
 <!-- table:abstention -->
+| arm | coverage | absent_abstain_rate | n_absent | present_emit_rate | n_present | top_abstain_reason | top_abstain_count | mean_verify_iters |
+|---|---|---|---|---|---|---|---|---|
+| generative | 0.8909 | 0.4968 | 314 | 0.9331 | 2886 | no_candidate | 349 | 0 |
+| generative_verify | 0.0013 | 1 | 314 | 0.0014 | 2886 | checks_failed | 2847 | 0.8897 |
+| heuristic | 0.755 | 1 | 314 | 0.8371 | 2886 | no_candidate | 739 | 0.0316 |
+| llm_stub | 0.7459 | 1 | 314 | 0.8271 | 2886 | no_candidate | 813 | 0 |
+| span_only | 0.9163 | 0.7898 | 314 | 0.9931 | 2886 | no_candidate | 268 | 0 |
+| span_verify | 0.8641 | 0.9713 | 314 | 0.955 | 2886 | no_candidate | 268 | 0.0709 |
+| span_verify_norm | 0.8641 | 0.9713 | 314 | 0.955 | 2886 | no_candidate | 268 | 0.0709 |
 <!-- /table -->
 
 `absent_abstain_rate` is the one that matters: on the 314 fields the generator
@@ -302,6 +521,15 @@ with 0.5125 re-selections. `generative_verify` burns 7.1175 iterations per
 document by comparison, because almost every candidate it is offered fails.
 
 <!-- table:calibration -->
+| arm | ece | ace | mce | brier | nll | aurc | error_auroc | mean_confidence | n_calibration |
+|---|---|---|---|---|---|---|---|---|---|
+| generative | 0.417 | 0.417 | 0.5886 | 0.192 | 0.5683 | 0.9983 | 0.8459 | 0.4177 | 2851 |
+| generative_verify | 0.0668 | 0.4963 | 0.5666 | 0.2508 | 0.6947 | 0.2708 | 0.75 | 0.5668 | 4 |
+| heuristic | 0.1404 | 0.1366 | 0.5428 | 0.0846 | 0.4285 | 0.0209 | 0.6704 | 0.8389 | 2416 |
+| llm_stub | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0 |
+| span_only | 0.024 | 0.0254 | 0.0999 | 0.0446 | 0.1551 | 0.0085 | 0.9054 | 0.9174 | 2932 |
+| span_verify | 0.0693 | 0.0693 | 0.4338 | 0.0362 | 0.1262 | 0.0014 | 0.9058 | 0.9184 | 2765 |
+| span_verify_norm | 0.0693 | 0.0693 | 0.4338 | 0.0362 | 0.1262 | 0.0014 | 0.9058 | 0.9184 | 2765 |
 <!-- /table -->
 
 Measured on emitted values only: an abstention's confidence is a confidence in
@@ -330,6 +558,14 @@ A weak rule baseline would make every neural comparison in this file worthless,
 so its geometry is swept and the winner chosen on **validation**, never on test:
 
 <!-- table:heuristic_sweep -->
+| variant | split | canonical_accuracy | strict_accuracy | coverage | n_records |
+|---|---|---|---|---|---|
+| row_only | validation | 0.8267 | 0.7575 | 0.7575 | 1200 |
+| row_first | validation | 0.8267 | 0.7575 | 0.8083 | 1200 |
+| below_cheap_last | validation | 0.8025 | 0.7333 | 0.7883 | 1200 |
+| below_cheap | validation | 0.7967 | 0.7217 | 0.7833 | 1200 |
+| row_first_wide | validation | 0.7742 | 0.705 | 0.775 | 1200 |
+| any_page | validation | 0.7742 | 0.705 | 0.775 | 1200 |
 <!-- /table -->
 
 Six configurations over 150 validation documents (1200 pairs). `row_only` and
@@ -360,6 +596,43 @@ regression test `test_heuristic_finds_most_labels_on_real_documents` now pins it
 ## 7. Ablations
 
 <!-- table:ablations -->
+| kind | ablation | switch | metric | value | full_value | delta | noise_scale | ratio_to_noise | verdict | n_seeds |
+|---|---|---|---|---|---|---|---|---|---|---|
+| inference | conf_threshold_0.5 | min_confidence=0.5 | canonical_accuracy | 0.9256 | 0.9546 | -0.029 | 0.0139 | 2.0822 | survives | 3 |
+| inference | no_abstain | abstain=False | canonical_accuracy | 0.9589 | 0.9546 | 0.0043 | 0.0139 | 0.3071 | inside noise | 3 |
+| inference | no_arithmetic | arithmetic=False | canonical_accuracy | 0.9624 | 0.9546 | 0.0078 | 0.0139 | 0.5617 | inside noise | 3 |
+| inference | no_type_check | type_check=False | canonical_accuracy | 0.9376 | 0.9546 | -0.017 | 0.0139 | 1.2208 | suggestive | 3 |
+| inference | no_verification | enabled=False | canonical_accuracy | 0.9444 | 0.9546 | -0.0102 | 0.0139 | 0.734 | inside noise | 3 |
+| inference | conf_threshold_0.5 | min_confidence=0.5 | coverage | 0.85 | 0.8772 | -0.0272 | 0.0195 | 1.3938 | suggestive | 3 |
+| inference | no_abstain | abstain=False | coverage | 0.9216 | 0.8772 | 0.0444 | 0.0195 | 2.275 | survives | 3 |
+| inference | no_arithmetic | arithmetic=False | coverage | 0.9178 | 0.8772 | 0.0406 | 0.0195 | 2.0827 | survives | 3 |
+| inference | no_type_check | type_check=False | coverage | 0.8919 | 0.8772 | 0.0147 | 0.0195 | 0.753 | inside noise | 3 |
+| inference | no_verification | enabled=False | coverage | 0.9216 | 0.8772 | 0.0444 | 0.0195 | 2.275 | survives | 3 |
+| inference | conf_threshold_0.5 | min_confidence=0.5 | grounding_exact | 0.9946 | 0.9927 | 0.0019 | 0.0022 | 0.8477 | inside noise | 3 |
+| inference | no_abstain | abstain=False | grounding_exact | 0.9827 | 0.9927 | -0.0101 | 0.0022 | 4.6031 | robust | 3 |
+| inference | no_arithmetic | arithmetic=False | grounding_exact | 0.984 | 0.9927 | -0.0087 | 0.0022 | 3.9721 | robust | 3 |
+| inference | no_type_check | type_check=False | grounding_exact | 0.9713 | 0.9927 | -0.0214 | 0.0022 | 9.8185 | robust | 3 |
+| inference | no_verification | enabled=False | grounding_exact | 0.9666 | 0.9927 | -0.0261 | 0.0022 | 11.9492 | robust | 3 |
+| inference | conf_threshold_0.5 | min_confidence=0.5 | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| inference | no_abstain | abstain=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| inference | no_arithmetic | arithmetic=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| inference | no_type_check | type_check=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| inference | no_verification | enabled=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| inference | conf_threshold_0.5 | min_confidence=0.5 | strict_accuracy | 0.8639 | 0.8887 | -0.0249 | 0.0127 | 1.9565 | suggestive | 3 |
+| inference | no_abstain | abstain=False | strict_accuracy | 0.8857 | 0.8887 | -0.003 | 0.0127 | 0.2374 | inside noise | 3 |
+| inference | no_arithmetic | arithmetic=False | strict_accuracy | 0.8969 | 0.8887 | 0.0081 | 0.0127 | 0.6385 | inside noise | 3 |
+| inference | no_type_check | type_check=False | strict_accuracy | 0.8747 | 0.8887 | -0.0141 | 0.0127 | 1.1051 | suggestive | 3 |
+| inference | no_verification | enabled=False | strict_accuracy | 0.8818 | 0.8887 | -0.007 | 0.0127 | 0.5485 | inside noise | 3 |
+| training | no_2d_pos | use_2d_pos=False | canonical_accuracy | 0.9293 | 0.9546 | -0.0253 | 0.0139 | 1.82 | suggestive | 3 |
+| training | no_spatial_bias | use_spatial_bias=False | canonical_accuracy | 0.9096 | 0.9546 | -0.045 | 0.0139 | 3.2356 | robust | 3 |
+| training | no_2d_pos | use_2d_pos=False | coverage | 0.8782 | 0.8772 | 0.001 | 0.0195 | 0.0534 | inside noise | 3 |
+| training | no_spatial_bias | use_spatial_bias=False | coverage | 0.84 | 0.8772 | -0.0372 | 0.0195 | 1.9065 | suggestive | 3 |
+| training | no_2d_pos | use_2d_pos=False | grounding_exact | 0.9724 | 0.9927 | -0.0203 | 0.0022 | 9.3033 | robust | 3 |
+| training | no_spatial_bias | use_spatial_bias=False | grounding_exact | 0.9867 | 0.9927 | -0.006 | 0.0022 | 2.7317 | survives | 3 |
+| training | no_2d_pos | use_2d_pos=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| training | no_spatial_bias | use_spatial_bias=False | hallucination_rate | 0 | 0 | 0 | 0 | n/a | unknown | 3 |
+| training | no_2d_pos | use_2d_pos=False | strict_accuracy | 0.8674 | 0.8887 | -0.0214 | 0.0127 | 1.6782 | suggestive | 3 |
+| training | no_spatial_bias | use_spatial_bias=False | strict_accuracy | 0.845 | 0.8887 | -0.0437 | 0.0127 | 3.4382 | robust | 3 |
 <!-- /table -->
 
 Two families, and keeping them apart matters. **Inference-time** switches reuse
@@ -421,6 +694,38 @@ off entirely -- can make a selection head emit a string absent from the document
 switched off, so comparing against it attributes the loop exactly:
 
 <!-- table:verdicts_vs_span_only -->
+| arm | metric | value | reference_value | delta | noise_scale | ratio_to_noise | verdict |
+|---|---|---|---|---|---|---|---|
+| generative | strict_accuracy | 0.0477 | 0.8818 | -0.8341 | 0.0135 | 61.6434 | robust |
+| generative_verify | strict_accuracy | 0.0923 | 0.8818 | -0.7895 | 0.0135 | 58.3484 | robust |
+| heuristic | strict_accuracy | 0.7593 | 0.8818 | -0.1225 | 0.0135 | 9.0537 | robust |
+| llm_stub | strict_accuracy | 0.7574 | 0.8818 | -0.1244 | 0.0135 | 9.1922 | robust |
+| span_verify | strict_accuracy | 0.8887 | 0.8818 | 0.007 | 0.0135 | 0.5158 | inside noise |
+| span_verify_norm | strict_accuracy | 0.9541 | 0.8818 | 0.0723 | 0.0135 | 5.3429 | robust |
+| generative | canonical_accuracy | 0.0477 | 0.9444 | -0.8967 | 0.0122 | 73.2125 | robust |
+| generative_verify | canonical_accuracy | 0.0923 | 0.9444 | -0.8521 | 0.0122 | 69.5723 | robust |
+| heuristic | canonical_accuracy | 0.8244 | 0.9444 | -0.12 | 0.0122 | 9.798 | robust |
+| llm_stub | canonical_accuracy | 0.7574 | 0.9444 | -0.187 | 0.0122 | 15.2668 | robust |
+| span_verify | canonical_accuracy | 0.9546 | 0.9444 | 0.0102 | 0.0139 | 0.734 | inside noise |
+| span_verify_norm | canonical_accuracy | 0.9546 | 0.9444 | 0.0102 | 0.0139 | 0.734 | inside noise |
+| generative | coverage | 0.8852 | 0.9216 | -0.0364 | 0.0133 | 2.7385 | survives |
+| generative_verify | coverage | 0.0013 | 0.9216 | -0.9203 | 0.0069 | 132.5018 | robust |
+| heuristic | coverage | 0.7576 | 0.9216 | -0.164 | 0.0069 | 23.6059 | robust |
+| llm_stub | coverage | 0.75 | 0.9216 | -0.1716 | 0.0119 | 14.3976 | robust |
+| span_verify | coverage | 0.8772 | 0.9216 | -0.0444 | 0.0195 | 2.275 | survives |
+| span_verify_norm | coverage | 0.8772 | 0.9216 | -0.0444 | 0.0195 | 2.275 | survives |
+| generative | grounding_exact | n/a | 0.9666 | n/a | 0.0062 | n/a | unknown |
+| generative_verify | grounding_exact | n/a | 0.9666 | n/a | 0.0062 | n/a | unknown |
+| heuristic | grounding_exact | 0.9671 | 0.9666 | 5.29e-04 | 0.0062 | 0.0853 | inside noise |
+| llm_stub | grounding_exact | n/a | 0.9666 | n/a | 0.0062 | n/a | unknown |
+| span_verify | grounding_exact | 0.9927 | 0.9666 | 0.0261 | 0.0062 | 4.2071 | robust |
+| span_verify_norm | grounding_exact | 0.9927 | 0.9666 | 0.0261 | 0.0062 | 4.2071 | robust |
+| generative | grounding_iou | n/a | 0.9697 | n/a | 0.007 | n/a | unknown |
+| generative_verify | grounding_iou | n/a | 0.9697 | n/a | 0.007 | n/a | unknown |
+| heuristic | grounding_iou | 0.969 | 0.9697 | -6.84e-04 | 0.007 | 0.0972 | inside noise |
+| llm_stub | grounding_iou | n/a | 0.9697 | n/a | 0.007 | n/a | unknown |
+| span_verify | grounding_iou | 0.9928 | 0.9697 | 0.0231 | 0.007 | 3.2874 | robust |
+| span_verify_norm | grounding_iou | 0.9928 | 0.9697 | 0.0231 | 0.007 | 3.2874 | robust |
 <!-- /table -->
 
 Read down the `verdict` column, not the `delta` column.
@@ -443,6 +748,12 @@ Read down the `verdict` column, not the `delta` column.
 ## 8. Determinism
 
 <!-- table:determinism -->
+| quantity | n | max_abs_difference | identical |
+|---|---|---|---|
+| generator_token_boxes | 13812 | 0 | yes |
+| generator_token_texts | 3453 | 0 | yes |
+| span_verify_confidence | 3200 | 0 | yes |
+| span_verify_emitted_values | 3200 | 0 | yes |
 <!-- /table -->
 
 Two separate invocations, per-item outputs diffed: 13812 generated box
@@ -504,6 +815,9 @@ which is exactly the comparison the protocol prescribes — but it is *not* evid
 that generation cannot do this task.
 
 <!-- table:generative_budget -->
+| arm | epochs | strict_accuracy | canonical_accuracy | coverage | hallucination_rate | final_val_loss | n_records |
+|---|---|---|---|---|---|---|---|
+| generative (shared budget) | 6 | 0.0494 | 0.0494 | 0.8909 | 0.9986 | 1.0016 | 3200 |
 <!-- /table -->
 
 A character decoder has to learn to spell before it can be right: at roughly 1.0
