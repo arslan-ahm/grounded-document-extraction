@@ -37,7 +37,7 @@ model:
   vocab_size: 512
 optim:
   batch_size: 16
-  epochs: 12
+  epochs: 9
   grad_clip: 1.0
   label_smoothing: 0.0
   lr: 0.003
