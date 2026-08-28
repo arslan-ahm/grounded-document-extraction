@@ -291,6 +291,13 @@ def notebook_05() -> list[tuple[str, str]]:
     return [
         ("md", """# 05 - Colab / Kaggle: the same code at full scale
 
+> **This notebook is GPU-only by design and ships without outputs.** It is not
+> executed by `scripts/build_notebooks.py --execute` (see `NO_EXECUTE`) and it is
+> not executed in CI: it configures a run roughly 8x the size of everything in
+> `results/`, which would not finish on the two CPU threads the rest of this
+> repository is measured on. Every other notebook here ships *with* its outputs.
+> Open this one in Colab or Kaggle with a GPU runtime.
+
 Runs the identical package on a GPU runtime at roughly 8x the shipped scale:
 6000 training documents, 288 tokens per document, a wider encoder, and a longer
 schedule. Nothing here is a different implementation -- only the config changes.
