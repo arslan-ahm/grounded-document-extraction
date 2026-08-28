@@ -229,6 +229,9 @@ def write_all(seeds: list[int], tables_dir: Path = TABLES) -> dict[str, Path]:
     # A second reference: the rule baseline is the stronger competitor, so the
     # gap against it is the more informative one and is shipped alongside.
     dump("verdicts_vs_heuristic", verdict_table(runs, variance, reference="heuristic"))
+    # A third reference: `span_only` isolates the verification loop, since it is
+    # the same weights and the same candidates with the loop switched off.
+    dump("verdicts_vs_span_only", verdict_table(runs, variance, reference="span_only"))
     dump("statistical_tests", paired_tests(per_item, primary))
     dump("normalisation_cost", normalisation_cost(per_item, primary))
     dump(

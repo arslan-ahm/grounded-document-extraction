@@ -132,6 +132,15 @@ def table_verdicts_vs_heuristic() -> str:
     )
 
 
+def table_verdicts_vs_span_only() -> str:
+    """Every arm against selection with verification off, isolating the loop."""
+    return to_markdown(
+        _read("verdicts_vs_span_only"),
+        ["arm", "metric", "value", "reference_value", "delta", "noise_scale",
+         "ratio_to_noise", "verdict"],
+    )
+
+
 def table_seed_variance() -> str:
     return to_markdown(
         _read("seed_variance"),
@@ -243,6 +252,7 @@ ALL: dict[str, Callable[[], str]] = {
     "method": table_method,
     "verdicts": table_verdicts,
     "verdicts_vs_heuristic": table_verdicts_vs_heuristic,
+    "verdicts_vs_span_only": table_verdicts_vs_span_only,
     "seed_variance": table_seed_variance,
     "statistical_tests": table_statistical_tests,
     "normalisation_cost": table_normalisation_cost,
