@@ -118,7 +118,16 @@ def train(
     n_batches = max(1, math.ceil(len(train_data) / cfg.optim.batch_size))
     total_steps = n_batches * cfg.optim.epochs
     warmup = int(cfg.optim.warmup_frac * total_steps)
-    logger = JsonlLogger(run_dir / "history.jsonl") if run_dir is not None else None
+    logger = None
+    if run_dir is not None:
+        # A re-run of the same seed must not append to the previous run's
+        # history: the training-curve figure would then show two runs spliced
+        # together and the "final val loss" read from the file would be wrong.
+        history_path = run_dir / "history.jsonl"
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        if history_path.exists():
+            history_path.unlink()
+        logger = JsonlLogger(history_path)
 
     result = TrainResult(n_params=sum(p.numel() for p in model.parameters()))
     best_state: dict[str, torch.Tensor] | None = None
