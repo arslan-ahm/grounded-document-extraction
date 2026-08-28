@@ -305,7 +305,7 @@ def generative_budget_table(runs_dir: Path = RUNS, tables_dir: Path = TABLES) ->
     Returns an empty frame with its columns when the long run has not been done.
     """
     columns = [
-        "arm", "epochs", "strict_accuracy", "canonical_accuracy", "coverage",
+        "arm", "epochs", "status", "strict_accuracy", "canonical_accuracy", "coverage",
         "hallucination_rate", "final_val_loss", "train_seconds", "n_records",
     ]
     rows: list[dict[str, Any]] = []
@@ -318,7 +318,8 @@ def generative_budget_table(runs_dir: Path = RUNS, tables_dir: Path = TABLES) ->
             rows.append(
                 {
                     "arm": "generative (shared budget)",
-                    "epochs": 6,
+                    "epochs": _epochs_of(runs_dir / "seed0" / "generative"),
+                    "status": "evaluated",
                     "strict_accuracy": row["strict_accuracy"],
                     "canonical_accuracy": row["canonical_accuracy"],
                     "coverage": row["coverage"],
@@ -330,6 +331,24 @@ def generative_budget_table(runs_dir: Path = RUNS, tables_dir: Path = TABLES) ->
             )
     long_dir = runs_dir / "gdx_generative_long"
     summary = long_dir / "summary.csv"
+    if not summary.exists() and (long_dir / "history.jsonl").exists():
+        # A longer schedule was started and its training curve survives, but the
+        # run was killed before evaluation. Reporting the curve with `n/a`
+        # accuracy is the honest outcome; inferring the accuracy would not be.
+        rows.append(
+            {
+                "arm": "generative (long schedule)",
+                "epochs": _epochs_of(long_dir),
+                "status": "training curve only, not evaluated",
+                "strict_accuracy": np.nan,
+                "canonical_accuracy": np.nan,
+                "coverage": np.nan,
+                "hallucination_rate": np.nan,
+                "final_val_loss": _final_val_loss(long_dir),
+                "train_seconds": np.nan,
+                "n_records": np.nan,
+            }
+        )
     if summary.exists():
         frame = pd.read_csv(summary)
         for _, row in frame.iterrows():
@@ -337,6 +356,7 @@ def generative_budget_table(runs_dir: Path = RUNS, tables_dir: Path = TABLES) ->
                 {
                     "arm": f"{row['arm']} (long schedule)",
                     "epochs": _epochs_of(long_dir),
+                    "status": "evaluated",
                     "strict_accuracy": row["strict_accuracy"],
                     "canonical_accuracy": row["canonical_accuracy"],
                     "coverage": row["coverage"],

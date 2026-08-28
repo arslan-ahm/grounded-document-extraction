@@ -231,8 +231,8 @@ def table_generative_budget() -> str:
     """The reference approach at the shared budget and at a longer schedule."""
     return to_markdown(
         _read("generative_budget"),
-        ["arm", "epochs", "strict_accuracy", "canonical_accuracy", "coverage",
-         "hallucination_rate", "final_val_loss", "n_records"],
+        ["arm", "epochs", "status", "strict_accuracy", "canonical_accuracy",
+         "coverage", "hallucination_rate", "final_val_loss", "n_records"],
     )
 
 

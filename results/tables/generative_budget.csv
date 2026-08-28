@@ -1,2 +1,3 @@
-arm,epochs,strict_accuracy,canonical_accuracy,coverage,hallucination_rate,final_val_loss,train_seconds,n_records
-generative (shared budget),6,0.049375,0.049375,0.8909375,0.9985969835145564,1.0015577069918316,605.8363532000221,3200.0
+arm,epochs,status,strict_accuracy,canonical_accuracy,coverage,hallucination_rate,final_val_loss,train_seconds,n_records
+generative (shared budget),6.0,evaluated,0.049375,0.049375,0.8909375,0.9985969835145564,1.0015577069918316,605.8363532000221,3200.0
+generative (long schedule),7.0,"training curve only, not evaluated",,,,,0.9645413978894551,,
