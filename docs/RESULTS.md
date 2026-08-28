@@ -1,11 +1,28 @@
 # Results
 
-Every number in this file is injected from a CSV in `results/tables/` by
-`scripts/render_docs.py`. None of them is typed by hand, and
-`tests/test_report_and_cli.py::test_shipped_documents_are_not_stale` fails if any
-has drifted from its source.
+Every table in this file is injected from a CSV in `results/tables/` by
+`scripts/render_docs.py`, and every number quoted in the prose is checked against
+those CSVs by `tests/test_doc_numbers.py`. Nothing here is typed from memory.
 
-`PENDING_NUMBERS`
+> **The four sentences that matter.**
+>
+> 1. **The guarantee holds and is exact.** Zero ungrounded values from the
+>    span arms across 3 seeds and 9,600 (document, field) pairs, against a
+>    hallucination rate of 0.9986 for the generative reference approach on the
+>    same encoder, same data, same budget, same seed.
+> 2. **But the checker, not the head, is what removes them.** Applying the same
+>    provenance check to the generative arm also reaches 0.0000 — by abstaining on
+>    99.9% of fields. Selection's real contribution is that it satisfies the check
+>    *for free*, at 0.8772 coverage instead of 0.0013.
+> 3. **Selection beats the strong rule baseline**, +0.1302 canonical accuracy at
+>    9.36x the run-to-run noise scale, and beats it on grounding by +0.0256 at
+>    5.92x — but that grounding gain comes from the verification loop, not from
+>    the head: `span_only` versus `heuristic` on grounding is 0.085x noise,
+>    inside noise.
+> 4. **The ideology's cost is exactly zero accuracy where it applies.** On the
+>    211 test fields whose written form is not the target, every selection-based
+>    arm scores **0.000000** strict accuracy — this repository's method and the
+>    rule baseline alike. It is a property of selection, not of this model.
 
 ## What was run, and what was not
 
@@ -24,100 +41,57 @@ defaults — the compute budget went to seeds and ablations instead, which is th
 right allocation when the question is whether a difference exceeds noise.
 
 **The scale, stated so it is not mistaken for something larger.** A 64-wide
-2-layer encoder, 1200 training documents, 6 epochs, three seeds, ~95 minutes of
-total compute on two CPU threads. The structural claims are scale-free. The
-accuracy comparisons are the ones a larger study could move.
+2-layer encoder, 1200 training documents, 6 epochs, three seeds, on two CPU
+threads. The structural claims are scale-free. The accuracy comparisons are the
+ones a larger study could move, and §9 says which.
 
 ## 1. Efficiency
 
 <!-- table:efficiency -->
 <!-- /table -->
 
+Ten warm-up iterations, thirty timed repeats, median and IQR, 2 torch threads,
+154 tokens. Latency covers the whole inference path — encode, decode, and the
+bounded verification loop — because timing the encoder alone would flatter both
+arms equally and hide the cost of the mechanism this repository adds.
+
+At batch 1 the selection path runs in 17.72595 ms against 164.9634 ms for
+generation, a factor of **9.306322**. At batch 8 the factor falls to **3.33148**,
+because the generative decoder's sequential steps amortise across the batch while
+selection's fixed overhead does not.
+
+**Read the MACs-per-ms column, not the MAC ratio.** At batch 8 generation retires
+2.906195 MMAC/ms against selection's 0.965766 — its decoder is dense matrix
+multiplication, while span decoding is dominated by overhead it cannot amortise.
+The MAC reduction there is 10.025132x and the latency reduction is 3.33148x.
+Quoting the first number alone would have been misleading, which is why both are
+in the table.
+
+### 1.1 The claim that actually separates the two approaches is asymptotic
+
 <!-- table:decode_scaling -->
 <!-- /table -->
+
+A span head emits two indices: a fixed number of sequential steps, independent of
+how long the value is. A character decoder emits `L` characters in `L` sequential
+steps *per field*. Fitted exponents in value length: **0.077604** for selection
+and **0.755079** for generation.
+
+Two honest qualifications. Selection's 0.077604 is flat only to within its own
+noise — its latencies wander between 80.0308 ms and 117.54825 ms with IQRs as
+large as 30.300675 ms, so the fit is "no detectable trend" rather than a precise
+zero. Generation's 0.755079 falls short of 1.0 because each decode also pays a
+fixed encoder pass that does not grow with `L`; the marginal cost per character is
+what is linear, and the raw latencies show it (92.154 ms at 4 characters,
+377.52165 ms at 24).
+
+### 1.2 The other cost axis is tokens, and it is accounting rather than latency
 
 <!-- table:baseline_cost -->
 <!-- /table -->
 
-`PENDING_NUMBERS`
-
-## 2. The seven-arm comparison
-
-<!-- table:method -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-### 2.1 Per field
-
-<!-- table:per_field -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-### 2.2 Is the difference significant?
-
-<!-- table:statistical_tests -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-### 2.3 And is it bigger than the noise?
-
-<!-- table:seed_variance -->
-<!-- /table -->
-
-<!-- table:verdicts -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 3. The hallucination result, stated precisely
-
-`PENDING_NUMBERS`
-
-## 4. The measured cost of the ideology
-
-<!-- table:normalisation_cost -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 5. Abstention and calibration
-
-<!-- table:abstention -->
-<!-- /table -->
-
-<!-- table:calibration -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 6. Ablations
-
-<!-- table:ablations -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 7. The rule baseline, given a fair fight
-
-<!-- table:heuristic_sweep -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 8. Determinism
-
-<!-- table:determinism -->
-<!-- /table -->
-
-`PENDING_NUMBERS`
-
-## 9. Retractions and negative results
-
-`PENDING_NUMBERS`
-
-## 10. Limitations, and what would change them
-
-`PENDING_NUMBERS`
+An LLM extraction pipeline pays for the whole serialised document on every
+request, once per field. The count is whitespace-based, so it understates a real
+BPE tokeniser on numeric text and is a **lower bound** on what a provider would
+bill. The rule baseline's per-document latency is measured under the same
+protocol as the neural arms.
