@@ -37,5 +37,13 @@ jobs:
       - name: Tests
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} -m pytest tests -q -m "not slow"
 
+      # The slow tests train real (tiny) models end to end, so they are the
+      # ones that catch wiring bugs between modules. They are the reason a
+      # `-m "not slow"` run is not evidence that the suite passes.
+      # Linux only, to keep the matrix cheap.
+      - name: Slow tests (end to end)
+        if: matrix.os == 'ubuntu-latest'
+        run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} -m pytest tests -q -m slow
+
       - name: Smoke pipeline
         run: ${{ runner.os == 'Windows' && '.venv/Scripts/python.exe' || '.venv/bin/python' }} scripts/train.py --config configs/smoke.yaml
