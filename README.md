@@ -7,7 +7,9 @@
 # Where Did That Number Come From? — Grounded Document Extraction
 
 <!-- links:begin -->
-**[Live results and figures](https://grounded-extraction-arslan.surge.sh)** &nbsp;·&nbsp; **[Source](https://github.com/arslan-ahm/grounded-document-extraction)** &nbsp;·&nbsp; [All seven projects](https://seven-ai-projects-arslan.surge.sh)
+**[▶ Try the live demo](https://huggingface.co/spaces/ARslan-Ahamd/grounded-document-extraction)** &nbsp;·&nbsp; **[Full results](https://grounded-extraction-arslan.surge.sh)** &nbsp;·&nbsp; [All seven projects](https://seven-ai-projects-arslan.surge.sh)
+
+<sub>The demo runs this repository's own code in your browser via Pyodide — no server, nothing uploaded.</sub>
 <!-- links:end -->
 
 > **Field extraction from visually-rich documents as *selection plus
