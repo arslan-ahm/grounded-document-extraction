@@ -6,6 +6,10 @@
 
 # Where Did That Number Come From? — Grounded Document Extraction
 
+<!-- links:begin -->
+**[Live results and figures](https://grounded-extraction-arslan.surge.sh)** &nbsp;·&nbsp; **[Source](https://github.com/arslan-ahm/grounded-document-extraction)** &nbsp;·&nbsp; [All seven projects](https://seven-ai-projects-arslan.surge.sh)
+<!-- links:end -->
+
 **Field extraction from visually-rich documents as *selection plus verification*
 rather than generation: every emitted value carries the token span it was read
 from, and a value whose provenance does not verify is abstained on.**
